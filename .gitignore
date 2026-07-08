@@ -6,6 +6,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+cd/
 
 # IDE / 系统
 .DS_Store
