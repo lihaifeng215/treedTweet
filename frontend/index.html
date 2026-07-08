@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrendArticle · AI 热点文章创作</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* ============================================
+       侧边栏布局 · 统一导航壳
+       ============================================ */
+    html, body {
+      height: 100vh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* --- 侧边栏 --- */
+    .sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: var(--bg-secondary, #12121a);
+      border-right: 1px solid var(--border-color, rgba(255,255,255,0.06));
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    /* Logo */
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--gradient-main);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar-logo-text .gradient-text {
+      background: var(--gradient-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* 导航区 */
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 8px;
+    }
+
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+    .sidebar-nav:hover::-webkit-scrollbar-thumb { background: var(--text-muted); }
+
+    .nav-section {
+      margin-bottom: 8px;
+    }
+
+    .nav-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 8px 12px 4px;
+      user-select: none;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-card-hover, #1c1c28);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent-blue);
+      position: relative;
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 16px;
+      background: var(--accent-blue);
+      border-radius: 0 3px 3px 0;
+    }
+
+    .nav-item-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    /* 底部 */
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* --- 主内容区 --- */
+    .main-frame {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+      background: var(--bg-primary, #0a0a0f);
+    }
+
+    .main-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* 小屏幕适配：隐藏侧边栏 */
+    @media (max-width: 768px) {
+      .sidebar { width: 64px; min-width: 64px; }
+      .sidebar-logo-text { display: none; }
+      .nav-section-title { display: none; }
+      .nav-item span:last-child { display: none; }
+      .nav-item { justify-content: center; padding: 10px; }
+      .nav-item.active::before { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- 左侧侧边栏 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📝</div>
+      <div class="sidebar-logo-text">Trend<span class="gradient-text">Article</span></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">创作</div>
+        <a class="nav-item active" href="/workflow.html" data-page="workflow" onclick="return switchPage(this, '/workflow.html')">
+          <span class="nav-item-icon">✨</span>
+          <span>创作工作流</span>
+        </a>
+        <a class="nav-item" href="/library.html" data-page="library" onclick="return switchPage(this, '/library.html')">
+          <span class="nav-item-icon">📚</span>
+          <span>素材库</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">数据</div>
+        <a class="nav-item" href="/dashboard.html" data-page="dashboard" onclick="return switchPage(this, '/dashboard.html')">
+          <span class="nav-item-icon">📊</span>
+          <span>仪表盘</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">系统</div>
+        <a class="nav-item" href="/settings.html" data-page="settings" onclick="return switchPage(this, '/settings.html')">
+          <span class="nav-item-icon">⚙️</span>
+          <span>设置</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-text">TrendArticle v3.0</div>
+    </div>
+  </aside>
+
+  <!-- 右侧主内容 iframe -->
+  <div class="main-frame" id="mainFrame">
+    <iframe id="contentFrame" src="/workflow.html" title="主内容"></iframe>
+  </div>
+</div>
+
+<script>
+  // 当前激活的页面
+  let currentPage = 'workflow';
+
+  // 页面切换
+  function switchPage(el, url) {
+    // 更新激活状态
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+
+    // 记录当前页面
+    const page = el.dataset.page;
+    currentPage = page;
+    history.pushState({ page: page }, '', '/' + (page === 'workflow' ? '' : page));
+
+    // 切换 iframe
+    const iframe = document.getElementById('contentFrame');
+    iframe.src = url;
+    return false;
+  }
+
+  // 根据 URL hash 或路径设置初始页面
+  function setPageFromUrl() {
+    const path = window.location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'workflow';
+    const pageMap = {
+      '': 'workflow',
+      'workflow': 'workflow',
+      'library': 'library',
+      'dashboard': 'dashboard',
+      'settings': 'settings',
+    };
+    const page = pageMap[path] || 'workflow';
+    const url = page === 'workflow' ? '/workflow.html' : '/' + page + '.html';
+
+    // 更新激活状态
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const activeItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (activeItem) activeItem.classList.add('active');
+
+    // 设置 iframe
+    const iframe = document.getElementById('contentFrame');
+    iframe.src = url;
+    currentPage = page;
+  }
+
+  // 监听 iframe 内部通过 postMessage 发送的页面切换请求
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'navigate') {
+      const target = e.data.target;
+      const pageMap = {
+        'workflow': '/workflow.html',
+        'library': '/library.html',
+        'dashboard': '/dashboard.html',
+        'settings': '/settings.html',
+      };
+      const url = pageMap[target];
+      if (url) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        const activeItem = document.querySelector(`.nav-item[data-page="${target}"]`);
+        if (activeItem) activeItem.classList.add('active');
+        document.getElementById('contentFrame').src = url;
+        currentPage = target;
+        history.pushState({ page: target }, '', '/' + (target === 'workflow' ? '' : target));
+      }
+    }
+  });
+
+  // 页面加载完成后初始化
+  setPageFromUrl();
+</script>
+
+</body>
+</html>

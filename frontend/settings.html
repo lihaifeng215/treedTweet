@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 · TrendArticle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/settings.css">
+</head>
+<body>
+  <script>
+  // 如果在 iframe 中，隐藏导航栏
+  (function() {
+    if (window.top !== window.self) {
+      document.documentElement.classList.add('in-iframe');
+    }
+  })();
+  </script>
+
+  <!-- 顶部导航 -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <div class="logo" onclick="location.href='/'">
+        <span class="logo-icon">🚀</span>
+        <span class="logo-text">Trend<span class="gradient-text">Article</span></span>
+      </div>
+      <div class="nav-links">
+        <a class="nav-btn" href="/" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'workflow'},'*');return false;}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span>返回工作流</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main-content settings-content">
+    <section class="hero" style="padding:32px 0 24px;">
+      <div class="hero-badge">⚙️ 大模型配置</div>
+      <h1 class="hero-title">配置你的 <span class="gradient-text">AI 引擎</span></h1>
+      <p class="hero-desc">配置 OpenAI 兼容格式的大模型接口，用于生成热点监控数据与高质量公众号文章。支持 OpenAI、DeepSeek、本地 Ollama 等。</p>
+    </section>
+
+    <!-- 配置状态 -->
+    <div id="statusBanner" class="status-banner">
+      <span id="statusDot" class="status-dot"></span>
+      <span id="statusText">检测中...</span>
+    </div>
+
+    <!-- 配置表单 -->
+    <section class="settings-card">
+      <h2 class="section-title">🔑 接口设置</h2>
+
+      <div class="form-group">
+        <label for="apiKey">API Key <span class="req">*</span></label>
+        <input type="password" id="apiKey" placeholder="sk-... 或你的服务商密钥" autocomplete="off">
+        <p class="form-hint">密钥仅保存在本地服务器（config.json），不会上传到任何第三方。</p>
+      </div>
+
+      <div class="form-group">
+        <label for="baseUrl">Base URL <span class="req">*</span></label>
+        <input type="text" id="baseUrl" placeholder="https://apihub.agnes-ai.com/v1">
+        <p class="form-hint">兼容 OpenAI 的接口基地址。例如：<br>
+          · Agnes：https://apihub.agnes-ai.com/v1<br>
+          · DeepSeek：https://api.deepseek.com/v1<br>
+          · 本地 Ollama：http://localhost:11434/v1
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label for="proxyUrl">代理地址</label>
+        <input type="text" id="proxyUrl" placeholder="http://127.0.0.1:7890">
+        <p class="form-hint">可选。HTTP/HTTPS 代理地址，用于访问被限制的 API（如国内访问 OpenAI）。填写后可解决连接超时问题。</p>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="model">模型名称 <span class="req">*</span></label>
+          <input type="text" id="model" placeholder="gpt-4o-mini / deepseek-chat">
+          <p class="form-hint">如 gpt-4o-mini、deepseek-chat、qwen-max 等。</p>
+        </div>
+        <div class="form-group">
+          <label for="temperature">温度</label>
+          <input type="number" id="temperature" min="0" max="2" step="0.1" value="0.8">
+          <p class="form-hint">越高越有创意，越低越稳定（0–2）。</p>
+        </div>
+      </div>
+
+      <h2 class="section-title" style="margin-top:24px;">⚡ 高级功能</h2>
+
+      <div class="form-row">
+        <div class="form-group toggle-group">
+          <label>流式输出（Stream）</label>
+          <div class="toggle-wrapper">
+            <label class="toggle-switch">
+              <input type="checkbox" id="streamEnabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">启用 SSE 流式生成文章</span>
+          </div>
+          <p class="form-hint">开启后推文将逐步显示，实时感受 AI 创作过程。</p>
+        </div>
+        <div class="form-group toggle-group">
+          <label>思考模式（Thinking）</label>
+          <div class="toggle-wrapper">
+            <label class="toggle-switch">
+              <input type="checkbox" id="thinkingEnabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">启用深度推理模式</span>
+          </div>
+          <p class="form-hint">适用于复杂分析，模型会先思考再回答，消耗更多 Token。</p>
+        </div>
+      </div>
+
+      <div class="form-row" id="thinkingBudgetRow" style="display:none;">
+        <div class="form-group">
+          <label for="thinkingBudget">思考预算（Budget Tokens）</label>
+          <input type="number" id="thinkingBudget" min="512" max="32768" step="512" value="2048">
+          <p class="form-hint">思考模式最大 Token 数。常规任务 2048 即可，复杂任务可调高。</p>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="articleLength">文章最大长度（字数）</label>
+          <input type="number" id="articleLength" min="500" max="8000" step="100" value="2000">
+          <p class="form-hint">公众号文章的建议篇幅，可根据需求调整。影响所有风格文章的生成篇幅。</p>
+        </div>
+      </div>
+
+      <h2 class="section-title" style="margin-top:24px;">🔍 搜索引擎配置</h2>
+      <p class="form-hint" style="margin-bottom:14px;">用于渐进式创作工作流的「搜索调研」步骤。默认使用 Bing HTML 抓取（免费，国内友好），无需额外配置。</p>
+
+      <div class="form-group">
+        <label for="searchProvider">搜索引擎</label>
+        <select id="searchProvider" class="select-input">
+          <option value="bing_html">Bing HTML 抓取（默认，免费，国内友好）</option>
+          <option value="duckduckgo">DuckDuckGo（免费，自动降级到 Bing HTML）</option>
+          <option value="serpapi">SerpAPI（需 API Key）</option>
+          <option value="bing">Bing Web Search API（需 API Key）</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="searchApiKey">搜索 API Key</label>
+          <input type="password" id="searchApiKey" placeholder="SerpAPI/Bing API 密钥（免费引擎无需填写）" autocomplete="off">
+          <p class="form-hint">仅 SerpAPI/Bing API 需要。DuckDuckGo / Bing HTML 留空即可。</p>
+        </div>
+        <div class="form-group">
+          <label for="searchBaseUrl">搜索 Base URL（可选）</label>
+          <input type="text" id="searchBaseUrl" placeholder="自定义搜索引擎地址">
+          <p class="form-hint">可选。用于自建搜索代理或兼容其他搜索引擎。</p>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-secondary" id="testBtn" onclick="testConnection()">🔌 测试连接</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">💾 保存配置</button>
+      </div>
+    </section>
+
+    <!-- 测试输出 -->
+    <section id="testResult" class="test-result" style="display:none;"></section>
+
+    <section class="settings-card info-card">
+      <h2 class="section-title">ℹ️ 使用说明</h2>
+      <ul class="info-list">
+        <li>热点数据来自 Hacker News、B站热门、百度热搜、头条热榜、抖音热榜、GitHub Trending、微博热搜的真实接口（手动刷新抓取）。</li>
+        <li>公众号文章由你配置的大模型实时生成，支持 4 种风格：专业深度 / 幽默风趣 / 悬念吸引 / 情感共鸣。</li>
+        <li>「分析热点」功能会调用大模型生成结构化监控数据（摘要、关键点、情感、趋势等）。</li>
+        <li>也可通过环境变量配置（更适合生产）：<code>LLM_API_KEY</code>、<code>LLM_BASE_URL</code>、<code>LLM_MODEL</code>、<code>LLM_TEMPERATURE</code>。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Built with ❤️ by TrendArticle</p>
+  </footer>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/settings.js"></script>
+</body>
+</html>

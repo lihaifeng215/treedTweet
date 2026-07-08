@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>素材库 · TrendArticle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<script>
+// 如果在 iframe 中，隐藏导航栏，并通过 postMessage 通知父页面
+(function() {
+  if (window.top !== window.self) {
+    document.documentElement.classList.add('in-iframe');
+  }
+})();
+</script>
+
+<!-- 导航栏 -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <div class="logo" onclick="location.href='/'">
+      <span class="logo-icon">📝</span>
+      <span class="logo-text">Trend<span class="gradient-text">Article</span></span>
+      <span class="nav-tag">素材库</span>
+    </div>
+    <div class="nav-links">
+      <a class="nav-btn" href="/dashboard" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'dashboard'},'*');return false;}">📊 仪表盘</a>
+      <a class="nav-btn" href="/" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'workflow'},'*');return false;}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7-7 7M21 12H3"/></svg>
+        <span>工作流</span>
+      </a>
+      <button class="nav-btn nav-btn-primary" onclick="refreshHotspots()">🔄 刷新热点</button>
+      <a class="nav-btn" href="/settings" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'settings'},'*');return false;}">⚙️ 设置</a>
+    </div>
+  </div>
+</nav>
+
+<main class="main-content">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">📚 素材库</div>
+    <h1 class="hero-title">热点 <span class="gradient-text">素材库</span></h1>
+    <p class="hero-desc">聚合 14+ 数据源实时热点，选择一个素材进入渐进式创作工作流，生成高质量公众号文章。</p>
+  </section>
+
+  <!-- 页面切换标签 -->
+  <section class="page-tabs">
+    <button class="page-tab active" id="tabHotspots" onclick="switchTab('hotspots')">📡 热点素材</button>
+    <button class="page-tab" id="tabArticles" onclick="switchTab('articles')">📄 我的文章</button>
+  </section>
+
+  <!-- 统计栏 -->
+  <section class="stats-bar" id="statsBar">
+    <div class="stat-item">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label">热点素材</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="statSources">0</div>
+      <div class="stat-label">活跃数据源</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="statTime">--</div>
+      <div class="stat-label">更新时间</div>
+    </div>
+  </section>
+
+  <!-- 搜索与排序栏 -->
+  <section class="search-toolbar">
+    <div class="search-box">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" class="search-input" placeholder="搜索热点标题或描述... (Ctrl+K)" oninput="onSearchInput()">
+      <button class="search-clear" id="searchClear" style="display:none;" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="toolbar-right">
+      <span class="refresh-countdown" id="refreshCountdown"></span>
+      <select class="sort-select" id="sortSelect" onchange="onSortChange()">
+        <option value="default">📋 默认排序</option>
+        <option value="engagement">🔥 按热度</option>
+        <option value="source">📡 按来源</option>
+        <option value="title">🔤 按标题</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- 筛选区 -->
+  <section class="filters-section" id="filtersSection">
+    <div class="filter-group">
+      <span class="filter-label">数据源</span>
+      <div class="filter-tabs" id="sourceFilterTabs">
+        <button class="filter-tab active" data-filter="all">全部</button>
+        <button class="filter-tab" data-filter="Hacker News"><span class="source-status-dot unknown" data-source="hackernews"></span>🟠 HN</button>
+        <button class="filter-tab" data-filter="GitHub Trending"><span class="source-status-dot unknown" data-source="github"></span>🐙 GitHub</button>
+        <button class="filter-tab" data-filter="百度热搜"><span class="source-status-dot unknown" data-source="baidu"></span>🔍 百度</button>
+        <button class="filter-tab" data-filter="头条热榜"><span class="source-status-dot unknown" data-source="toutiao"></span>📰 头条</button>
+        <button class="filter-tab" data-filter="抖音热榜"><span class="source-status-dot unknown" data-source="douyin"></span>🎵 抖音</button>
+        <button class="filter-tab" data-filter="微博热搜"><span class="source-status-dot unknown" data-source="weibo"></span>📢 微博</button>
+        <button class="filter-tab" data-filter="B站热门"><span class="source-status-dot unknown" data-source="bilibili"></span>🅱️ B站</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">信源等级</span>
+      <div class="filter-tabs" id="tierFilterTabs">
+        <button class="filter-tab active" data-filter="all">全部</button>
+        <button class="filter-tab" data-filter="T1">⭐ T1 一手信源</button>
+        <button class="filter-tab" data-filter="T1.5">📋 T1.5 官方平台</button>
+        <button class="filter-tab" data-filter="T2">📝 T2 综合媒体</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">内容类型</span>
+      <div class="filter-tabs" id="categoryFilterTabs">
+        <button class="filter-tab active" data-filter="all">全部</button>
+        <button class="filter-tab" data-filter="tech">🔬 科技前沿</button>
+        <button class="filter-tab" data-filter="business">📈 商业财经</button>
+        <button class="filter-tab" data-filter="trending">🔥 热点资讯</button>
+        <button class="filter-tab" data-filter="entertainment">🎬 娱乐视频</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 热点卡片网格 -->
+  <section class="hotspots-section" id="hotspotsSection">
+    <div class="hotspots-grid" id="hotspotsGrid">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>正在加载热点数据...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 我的文章列表 -->
+  <section class="hotspots-section" id="articlesSection" style="display:none;">
+    <div class="hotspots-grid" id="articlesGrid">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>正在加载文章...</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Built with ❤️ by TrendArticle · 素材库</p>
+</footer>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/common.js"></script>
+<script src="/library.js"></script>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrendArticle · 热点仪表盘</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+/* Dashboard 专属样式 */
+.dashboard-layout {
+  display: flex;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.dashboard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 顶部导航 */
+.dash-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.dash-nav-links {
+  display: flex;
+  gap: 8px;
+}
+
+.dash-nav-link {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.dash-nav-link:hover { color: var(--text-primary); background: var(--bg-hover); }
+.dash-nav-link.active { color: var(--accent-blue); background: rgba(59,130,246,0.1); }
+
+/* 状态卡片 */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.stat-card.accent { border-left: 3px solid var(--accent-blue); }
+.stat-card.success { border-left: 3px solid var(--accent-green); }
+.stat-card.warning { border-left: 3px solid var(--accent-orange); }
+.stat-card.purple { border-left: 3px solid #8b5cf6; }
+
+/* 日报板块 */
+.digest-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.digest-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.digest-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.digest-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.digest-body {
+  padding: 0;
+}
+
+.digest-category {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.digest-category:last-child { border-bottom: none; }
+
+.digest-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.digest-cat-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
+.digest-item {
+  padding: 10px 14px;
+  margin: 4px 0;
+  border-radius: 8px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.digest-item:hover {
+  background: var(--bg-hover);
+}
+
+.digest-item-rank {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.digest-item:nth-child(2) .digest-item-rank { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.digest-item:nth-child(3) .digest-item-rank { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.digest-item:nth-child(4) .digest-item-rank { background: rgba(180,83,9,0.15); color: #b45309; }
+
+.digest-item-content { flex: 1; min-width: 0; }
+.digest-item-title { font-size: 14px; font-weight: 500; line-height: 1.4; }
+.digest-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.digest-item-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.digest-score {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.digest-score.high { background: rgba(34,197,94,0.12); color: #22c55e; }
+.digest-score.mid { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.digest-score.low { background: rgba(239,68,68,0.12); color: #ef4444; }
+
+/* 信源等级徽章 */
+.tier-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.tier-badge.t1 { background: rgba(34,197,94,0.12); color: #22c55e; }
+.tier-badge.t1-5 { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.tier-badge.t2 { background: rgba(148,163,184,0.12); color: #94a3b8; }
+
+/* 侧边栏 */
+.sidebar-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-body { padding: 12px 16px; }
+
+.source-health-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.source-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.source-health-dot.healthy { background: #22c55e; }
+.source-health-dot.degraded { background: #f59e0b; }
+.source-health-dot.unhealthy { background: #ef4444; }
+.source-health-dot.unavailable { background: var(--text-muted); }
+
+.source-health-name { flex: 1; color: var(--text-primary); }
+.source-health-tier { font-size: 10px; color: var(--text-muted); }
+.source-health-rate { font-size: 11px; color: var(--text-muted); }
+
+/* 空状态 */
+.empty-digest {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-digest-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-digest-text { font-size: 14px; }
+.empty-digest-hint { font-size: 12px; margin-top: 8px; opacity: 0.7; }
+
+/* 生成按钮 */
+.digest-generate-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: var(--accent-blue);
+  color: #fff;
+  transition: all 0.2s;
+}
+
+.digest-generate-btn:hover { opacity: 0.85; }
+.digest-generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bucket-nav {
+  display: flex;
+  gap: 4px;
+  padding: 8px 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bucket-nav-item {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.bucket-nav-item:hover { color: var(--text-primary); background: var(--bg-hover); }
+.bucket-nav-item.active { color: var(--accent-blue); background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.2); }
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .dashboard-layout { flex-direction: column; }
+  .dashboard-sidebar { width: 100%; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<script>
+// 如果在 iframe 中，隐藏导航栏
+(function() {
+  if (window.top !== window.self) {
+    document.documentElement.classList.add('in-iframe');
+  }
+})();
+</script>
+  <!-- 顶部导航 -->
+  <nav class="dash-nav">
+    <div class="dash-nav-links">
+      <a href="/dashboard" class="dash-nav-link active">📊 仪表盘</a>
+      <a href="/" class="dash-nav-link" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'workflow'},'*');return false;}">✍️ 创作工作流</a>
+      <a href="/library" class="dash-nav-link" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'library'},'*');return false;}">📚 素材库</a>
+      <a href="/settings" class="dash-nav-link" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'settings'},'*');return false;}">⚙️ 设置</a>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);" id="lastUpdate">—</div>
+  </nav>
+
+  <!-- 主布局 -->
+  <div class="dashboard-layout">
+    <!-- 主内容区 -->
+    <div class="dashboard-main">
+      <!-- 统计卡片 -->
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card accent">
+          <div class="stat-card-value" id="statTotal">—</div>
+          <div class="stat-card-label">热点总数</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-card-value" id="statSelected">—</div>
+          <div class="stat-card-label">精选热点</div>
+          <div class="stat-card-sub" id="statSelectionRate"></div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-card-value" id="statAvgScore">—</div>
+          <div class="stat-card-label">平均质量分</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-card-value" id="statSources">—</div>
+          <div class="stat-card-label">活跃信源</div>
+        </div>
+      </div>
+
+      <!-- 日报板块 -->
+      <div class="digest-section" id="digestSection">
+        <div class="digest-header">
+          <div>
+            <div class="digest-title">📰 今日热点日报</div>
+            <div class="digest-date" id="digestDate">—</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="digest-generate-btn" id="genDigestBtn" onclick="generateDigest()">
+              🔄 生成日报
+            </button>
+          </div>
+        </div>
+        <div class="digest-body" id="digestBody">
+          <div class="empty-digest">
+            <div class="empty-digest-icon">📭</div>
+            <div class="empty-digest-text">暂无日报</div>
+            <div class="empty-digest-hint">点击「生成日报」基于当前热点数据生成今日精选报告</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="dashboard-sidebar">
+      <!-- 信源健康 -->
+      <div class="sidebar-card">
+        <div class="sidebar-header">📡 信源健康</div>
+        <div class="sidebar-body" id="sourceHealthList">
+          <div style="color:var(--text-muted);font-size:12px;">加载中...</div>
+        </div>
+      </div>
+
+      <!-- 信源分级说明 -->
+      <div class="sidebar-card">
+        <div class="sidebar-header">📊 信源分级体系</div>
+        <div class="sidebar-body">
+          <div class="source-health-item">
+            <div class="source-health-dot healthy"></div>
+            <div class="source-health-name">T1 一手信源</div>
+            <div class="source-health-tier">2.0x 权重</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px 16px;">GitHub、Hacker News — 官方一手信息</div>
+          <div class="source-health-item">
+            <div class="source-health-dot" style="background:#3b82f6;"></div>
+            <div class="source-health-name">T1.5 官方平台</div>
+            <div class="source-health-tier">1.5x 权重</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px 16px;">百度、微博、知乎 — 平台官方数据</div>
+          <div class="source-health-item">
+            <div class="source-health-dot" style="background:#94a3b8;"></div>
+            <div class="source-health-name">T2 综合媒体</div>
+            <div class="source-health-tier">1.0x 权重</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin:2px 0 8px 16px;">36氪、少数派、抖音、B站 — KOL/媒体</div>
+          <div style="margin-top:12px;padding:10px;background:var(--bg-hover);border-radius:8px;font-size:11px;color:var(--text-muted);line-height:1.6;">
+            💡 <strong>设计理念</strong>：信源比信息重要。<br>
+            一手信源即使热度低也值得关注，二手传闻即使热度高也需要审慎对待。
+          </div>
+        </div>
+      </div>
+
+      <!-- 快捷操作 -->
+      <div class="sidebar-card">
+        <div class="sidebar-header">⚡ 快捷操作</div>
+        <div class="sidebar-body">
+          <button class="digest-generate-btn" style="width:100%;margin-bottom:8px;" 
+                  onclick="exportLatestDigest()">📥 导出最新日报</button>
+          <button class="digest-generate-btn" style="width:100%;background:var(--bg-hover);color:var(--text-primary);" 
+                  onclick="location.href='/'">✍️ 开始创作</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div id="toastContainer" style="position:fixed;top:60px;right:20px;z-index:9999;"></div>
+
+  <script src="/common.js"></script>
+  <script src="/dashboard.js"></script>
+</body>
+</html>

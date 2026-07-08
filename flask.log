@@ -1,0 +1,36 @@
+🚀 TrendArticle v3.0 — 热点公众号文章生成器
+📱 访问 http://localhost:5000
+⚙️  设置页: http://localhost:5000/settings
+ * Serving Flask app 'app'
+ * Debug mode: off
+2026-07-08 17:19:21,030 INFO [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.249.47.12:5000
+2026-07-08 17:19:21,030 INFO [33mPress CTRL+C to quit[0m
+2026-07-08 17:19:31,563 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "GET / HTTP/1.1" 200 -
+2026-07-08 17:19:31,575 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-08 17:19:31,807 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "GET /workflow.html HTTP/1.1" 200 -
+2026-07-08 17:19:31,960 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-08 17:19:32,174 INFO 127.0.0.1 - - [08/Jul/2026 17:19:32] "[36mGET /common.js HTTP/1.1[0m" 304 -
+2026-07-08 17:19:32,175 INFO 127.0.0.1 - - [08/Jul/2026 17:19:32] "[36mGET /workflow.css HTTP/1.1[0m" 304 -
+2026-07-08 17:19:32,191 INFO 127.0.0.1 - - [08/Jul/2026 17:19:32] "[36mGET /workflow.js HTTP/1.1[0m" 304 -
+2026-07-08 17:19:36,172 INFO 127.0.0.1 - - [08/Jul/2026 17:19:36] "GET / HTTP/1.1" 200 -
+2026-07-08 17:19:43,321 INFO 127.0.0.1 - - [08/Jul/2026 17:19:43] "GET / HTTP/1.1" 200 -
+2026-07-08 17:19:51,115 INFO 127.0.0.1 - - [08/Jul/2026 17:19:51] "GET / HTTP/1.1" 200 -
+2026-07-08 17:19:59,702 INFO 127.0.0.1 - - [08/Jul/2026 17:19:59] "GET / HTTP/1.1" 200 -
+2026-07-08 17:20:11,084 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /workflow.html HTTP/1.1" 200 -
+2026-07-08 17:20:11,086 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /library.html HTTP/1.1" 200 -
+2026-07-08 17:20:11,088 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /settings.html HTTP/1.1" 200 -
+2026-07-08 17:20:11,091 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /dashboard.html HTTP/1.1" 200 -
+2026-07-08 17:20:23,338 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /workflow.html HTTP/1.1" 200 -
+2026-07-08 17:20:23,345 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /library.html HTTP/1.1" 200 -
+2026-07-08 17:20:23,351 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /settings.html HTTP/1.1" 200 -
+2026-07-08 17:20:23,358 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /dashboard.html HTTP/1.1" 200 -
+2026-07-08 17:20:33,644 INFO 127.0.0.1 - - [08/Jul/2026 17:20:33] "GET / HTTP/1.1" 200 -
+2026-07-08 17:20:33,769 INFO 127.0.0.1 - - [08/Jul/2026 17:20:33] "GET /style.css HTTP/1.1" 200 -
+2026-07-08 17:20:34,069 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "GET /workflow.html HTTP/1.1" 200 -
+2026-07-08 17:20:34,080 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-08 17:20:34,178 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "GET /workflow.css HTTP/1.1" 200 -
+2026-07-08 17:20:34,487 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "[36mGET /common.js HTTP/1.1[0m" 304 -
+2026-07-08 17:20:34,533 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "GET /workflow.js HTTP/1.1" 200 -

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrendArticle · 渐进式创作工作流</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/workflow.css">
+</head>
+<body>
+
+<script>
+// 如果在 iframe 中，隐藏导航栏，并通过 postMessage 通知父页面
+(function() {
+  if (window.top !== window.self) {
+    document.documentElement.classList.add('in-iframe');
+  }
+})();
+</script>
+
+<!-- 导航栏 -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <div class="logo" onclick="location.href='/'">
+      <span class="logo-icon">📝</span>
+      <span class="gradient-text">TrendArticle</span>
+      <span class="nav-tag">工作流</span>
+    </div>
+    <div class="nav-links">
+      <a class="nav-btn dashboard" href="/dashboard" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'dashboard'},'*');return false;}">📊 仪表盘</a>
+      <a class="nav-btn" href="/library" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'library'},'*');return false;}">📚 素材库</a>
+      <a class="nav-btn" href="/settings" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'settings'},'*');return false;}">⚙️ 设置</a>
+    </div>
+  </div>
+</nav>
+
+<!-- 三栏工作流布局 -->
+<div class="workflow-layout">
+
+  <!-- 左栏：创作设置 -->
+  <aside class="workflow-left">
+    <div class="panel-header">
+      <h2>创作设置</h2>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">主题与素材</label>
+      <textarea id="topicInput" class="topic-input" rows="5"
+        placeholder="输入创作主题，或从「素材库」选择热点自动填充..."></textarea>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">调研强度</label>
+      <div class="radio-group" id="researchIntensity">
+        <label class="radio-card">
+          <input type="radio" name="intensity" value="quick">
+          <span class="radio-label">⚡ 快速生成</span>
+        </label>
+        <label class="radio-card active">
+          <input type="radio" name="intensity" value="standard" checked>
+          <span class="radio-label">🔍 标准调研</span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="intensity" value="deep">
+          <span class="radio-label">🔬 深度调研</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">写作风格</label>
+      <select id="styleSelect" class="select-input">
+        <option value="professional_depth">🔬 专业深度</option>
+        <option value="humorous">😄 幽默风趣</option>
+        <option value="suspenseful">🎭 悬念吸引</option>
+        <option value="emotional">💝 情感共鸣</option>
+      </select>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">内容类型</label>
+      <select id="contentType" class="select-input">
+        <option value="article">深度文章</option>
+        <option value="longform">长文</option>
+        <option value="news">短资讯</option>
+      </select>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">引用偏好</label>
+      <select id="citationPref" class="select-input">
+        <option value="strict">严格信源</option>
+        <option value="moderate" selected>适度引用</option>
+        <option value="casual">常规引用</option>
+      </select>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">文章模板</label>
+      <select id="templateSelect" class="select-input">
+        <option value="default">📝 通用文章</option>
+        <option value="hotspot_report">🔥 热点快报</option>
+        <option value="tech_analysis">🔬 技术解读</option>
+        <option value="product_review">📱 产品评测</option>
+        <option value="opinion_piece">💭 观点评论</option>
+        <option value="tutorial_guide">📖 教程指南</option>
+      </select>
+    </div>
+
+    <div class="left-section toggle-row">
+      <label class="toggle-item">
+        <span>实时联网调研</span>
+        <div class="toggle-switch active" id="liveResearchToggle">
+          <div class="toggle-knob"></div>
+        </div>
+      </label>
+      <label class="toggle-item">
+        <span>偏好事实与数据</span>
+        <div class="toggle-switch active" id="factBasedToggle">
+          <div class="toggle-knob"></div>
+        </div>
+      </label>
+    </div>
+
+    <div class="left-section" style="border-top:1px solid var(--border-color);padding-top:16px;">
+      <label class="field-label" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+        💡 设计理念：代码做判断，模型做评分<br>
+        <span style="font-size:10px;">LLM 仅负责内容生成，不代替你做决策</span>
+      </label>
+    </div>
+
+    <button class="btn-primary btn-start" id="startBtn" onclick="createWorkflow()">
+      <span class="btn-icon">✨</span> 开始生成
+    </button>
+  </aside>
+
+  <!-- 中栏：流程进度与内容 -->
+  <main class="workflow-center">
+    <!-- 键盘快捷键提示条 -->
+    <div class="kbd-hint-bar" id="kbdHintBar">
+      <span class="kbd-hint"><kbd>Ctrl+Enter</kbd> 开始创作</span>
+      <span class="kbd-hint"><kbd>Ctrl+S</kbd> 导出文章</span>
+      <span class="kbd-hint"><kbd>Esc</kbd> 取消操作</span>
+    </div>
+
+    <!-- 6 步进度条 -->
+    <div class="step-progress-bar" id="progressBar">
+      <div class="step-node" data-step="parse">
+        <div class="node-circle">1</div>
+        <span class="node-label">素材解析</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-node" data-step="research">
+        <div class="node-circle">2</div>
+        <span class="node-label">搜索调研</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-node" data-step="topics">
+        <div class="node-circle">3</div>
+        <span class="node-label">选题讨论</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-node" data-step="outline">
+        <div class="node-circle">4</div>
+        <span class="node-label">大纲确认</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-node" data-step="generate">
+        <div class="node-circle">5</div>
+        <span class="node-label">正文生成</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-node" data-step="verify">
+        <div class="node-circle">6</div>
+        <span class="node-label">检验输出</span>
+      </div>
+    </div>
+
+    <!-- 当前步骤内容区 -->
+    <div class="step-content-area" id="stepContentArea">
+      <!-- 空状态 -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🚀</div>
+        <h3>开始你的渐进式创作</h3>
+        <p>在左栏输入主题或从素材库选择热点，点击「开始生成」启动 6 步工作流。</p>
+        <div class="workflow-steps-preview">
+          <div class="step-preview-item"><span class="sp-num">1</span> 素材解析</div>
+          <div class="step-preview-item"><span class="sp-num">2</span> 搜索调研</div>
+          <div class="step-preview-item"><span class="sp-num">3</span> 选题讨论</div>
+          <div class="step-preview-item"><span class="sp-num">4</span> 大纲确认</div>
+          <div class="step-preview-item"><span class="sp-num">5</span> 正文生成</div>
+          <div class="step-preview-item"><span class="sp-num">6</span> 检验输出</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按钮区 -->
+    <div class="action-bar" id="actionBar" style="display:none;"></div>
+  </main>
+
+  <!-- 右栏：创作明细 -->
+  <aside class="workflow-right">
+    <div class="panel-header">
+      <h2>创作明细</h2>
+    </div>
+    <div class="detail-list" id="detailList">
+      <!-- 6 步手风琴由 JS 渲染 -->
+    </div>
+  </aside>
+
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="/common.js"></script>
+<script src="/workflow.js"></script>
+</body>
+</html>
