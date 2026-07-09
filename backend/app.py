@@ -24,6 +24,7 @@ from flask import Flask, jsonify, request, send_from_directory, Response
 import fetchers
 import llm_client
 import search_client
+import firecrawl_client
 import workflow_engine
 import scoring_engine
 import digest_engine
@@ -487,6 +488,26 @@ def api_health():
         'cache_age': time.time() - _LAST_FETCH_TIME if _HOTSPOT_CACHE else -1,
         'cache_ttl': _CACHE_TTL,
     })
+
+
+@app.route('/api/hotspot-detail')
+@rate_limit
+def api_hotspot_detail():
+    """获取热点详细信息：通过搜索 API 获取相关搜索结果"""
+    title = request.args.get('title', '').strip()
+    if not title:
+        return jsonify({'error': '缺少 title 参数'}), 400
+
+    try:
+        results = search_client.search(title, num_results=5)
+        return jsonify({
+            'title': title,
+            'results': results,
+            'count': len(results),
+        })
+    except Exception as e:
+        logger.warning(f'获取热点详情失败: {e}')
+        return jsonify({'error': f'搜索失败: {str(e)}', 'results': [], 'count': 0}), 500
 
 
 @app.route('/api/generate-tweet', methods=['POST'])
@@ -1178,6 +1199,7 @@ def get_llm_config():
         'search_provider': cfg.get('search_provider', 'duckduckgo'),
         'search_api_key_set': bool(cfg.get('search_api_key')),
         'search_base_url': cfg.get('search_base_url', ''),
+        'firecrawl_api_key_set': bool(cfg.get('firecrawl_api_key')),
         'configured': is_configured(),
     })
 
@@ -1350,6 +1372,48 @@ def api_delete_article(aid):
     """删除一篇已保存的文章"""
     workflow_engine.delete_saved_article(aid)
     return jsonify({'ok': True})
+
+
+# ============================================================
+# Firecrawl 网页抓取 API
+# ============================================================
+
+@app.route('/api/firecrawl/scrape', methods=['POST'])
+@rate_limit
+def api_firecrawl_scrape():
+    """使用 Firecrawl 抓取指定 URL，返回 Markdown 内容"""
+    data = request.json
+    if not data or not data.get('url'):
+        return jsonify({'error': '请提供要抓取的网页 URL'}), 400
+
+    url = data['url'].strip()
+    if not url.startswith('http'):
+        return jsonify({'error': 'URL 必须以 http:// 或 https:// 开头'}), 400
+
+    logger.info(f'[firecrawl] scraping: {url[:80]}')
+    ok, result = firecrawl_client.scrape_url(url)
+
+    if not ok:
+        return jsonify({'error': result}), 502
+
+    return jsonify({
+        'ok': True,
+        'title': result.get('title', ''),
+        'markdown': result.get('markdown', ''),
+        'url': result.get('url', url),
+        'credits_used': result.get('credits_used', 1),
+        'word_count': len(result.get('markdown', '')),
+    })
+
+
+@app.route('/api/firecrawl/usage')
+@rate_limit
+def api_firecrawl_usage():
+    """查询 Firecrawl 账户配额"""
+    ok, result = firecrawl_client.get_credit_usage()
+    if not ok:
+        return jsonify({'error': result}), 502
+    return jsonify({'ok': True, 'usage': result})
 
 
 # ============================================================

@@ -351,25 +351,19 @@
 </head>
 <body>
 <script>
-// 如果在 iframe 中，隐藏导航栏
-(function() {
-  if (window.top !== window.self) {
-    document.documentElement.classList.add('in-iframe');
-  }
+(function(){
+  const saved = sessionStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'theme') {
+      document.documentElement.setAttribute('data-theme', e.data.theme);
+      sessionStorage.setItem('theme', e.data.theme);
+    }
+  });
 })();
 </script>
-  <!-- 顶部导航 -->
-  <nav class="dash-nav">
-    <div class="dash-nav-links">
-      <a href="/dashboard" class="dash-nav-link active">📊 仪表盘</a>
-      <a href="/" class="dash-nav-link" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'workflow'},'*');return false;}">✍️ 创作工作流</a>
-      <a href="/library" class="dash-nav-link" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'library'},'*');return false;}">📚 素材库</a>
-      <a href="/settings" class="dash-nav-link" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'settings'},'*');return false;}">⚙️ 设置</a>
-    </div>
-    <div style="font-size:12px;color:var(--text-muted);" id="lastUpdate">—</div>
-  </nav>
 
-  <!-- 主布局 -->
+<!-- 主布局 -->
   <div class="dashboard-layout">
     <!-- 主内容区 -->
     <div class="dashboard-main">

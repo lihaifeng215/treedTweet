@@ -27,6 +27,7 @@ import logging
 import subprocess
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 from xml.etree import ElementTree
 
 import requests
@@ -234,15 +235,21 @@ def fetch_douyin_hot():
         return items
 
     try:
-        for w in data.get('word_list', [])[:20]:
+        word_list = data.get('word_list', [])
+        total = max(len(word_list), 1)
+        for idx, w in enumerate(word_list[:20]):
             word = w.get('word', '')
             if not word:
                 continue
             hot = w.get('hot_value', 0) or 0
+            url = w.get('url', '')
+            if not url:
+                # 抖音 API 通常不返回 URL，用搜索链接代替
+                url = f'https://www.douyin.com/search/{quote(word, safe="")}'
             items.append({
                 'title': word,
-                'url': w.get('url', ''),
-                'desc': w.get('desc', '') or '',
+                'url': url,
+                'desc': w.get('desc', '') or f'抖音热搜 #{idx+1}/{total}，热度 {hot}',
                 'source': '抖音热榜',
                 'category': 'general',
                 'heat': str(hot),
@@ -271,15 +278,20 @@ def fetch_toutiao_hot():
 
     try:
         hot_list = data if isinstance(data, list) else data.get('data', [])
-        for item in hot_list[:20]:
+        total = max(len(hot_list), 1)
+        for idx, item in enumerate(hot_list[:20]):
             title = item.get('Title', '')
             if not title:
                 continue
             hot_val = item.get('HotValue', 0) or 0
+            desc = item.get('LabelDesc', '') or ''
+            # 头条的 LabelDesc 通常只是"新事件上榜"/"热门事件"这类无意义标签
+            if not desc or desc in ('新事件上榜', '热门事件', '热门'):
+                desc = f'头条热搜 #{idx+1}/{total}，热度 {hot_val}'
             items.append({
                 'title': title,
                 'url': item.get('Url', '') or f"https://www.toutiao.com/trending/{item.get('ClusterIdStr', '')}",
-                'desc': item.get('LabelDesc', '') or '',
+                'desc': desc,
                 'source': '头条热榜',
                 'category': 'general',
                 'heat': str(hot_val),
@@ -825,10 +837,13 @@ def fetch_bilibili_hot():
                 view = stat.get('view', 0) or 0
                 like = stat.get('like_num', 0) or 0
                 reply = stat.get('reply', 0) or 0
+                desc = (v.get('desc', '') or '').strip()
+                if not desc:
+                    desc = f'B站热门视频，{view}次播放 · {like}点赞'
                 items.append({
                     'title': title,
                     'url': f"https://www.bilibili.com/video/{v.get('bvid', '')}",
-                    'desc': (v.get('desc', '') or '')[:300],
+                    'desc': desc,
                     'source': 'B站热门',
                     'category': 'video',
                     'heat': f'{view}次播放',
@@ -854,10 +869,13 @@ def fetch_bilibili_hot():
                     stat = v.get('stat', {})
                     view = stat.get('view', 0) or 0
                     like = stat.get('like_num', 0) or 0
+                    desc = (v.get('desc', '') or '').strip()
+                    if not desc:
+                        desc = f'B站热门视频，{view}次播放 · {like}点赞'
                     items.append({
                         'title': title,
                         'url': f"https://www.bilibili.com/video/{v.get('bvid', '')}",
-                        'desc': (v.get('desc', '') or '')[:300],
+                        'desc': desc,
                         'source': 'B站热门',
                         'category': 'video',
                         'heat': f'{view}次播放',

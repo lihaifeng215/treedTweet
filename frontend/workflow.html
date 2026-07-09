@@ -8,31 +8,18 @@
   <link rel="stylesheet" href="/workflow.css">
 </head>
 <body>
-
 <script>
-// 如果在 iframe 中，隐藏导航栏，并通过 postMessage 通知父页面
-(function() {
-  if (window.top !== window.self) {
-    document.documentElement.classList.add('in-iframe');
-  }
+(function(){
+  const saved = sessionStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'theme') {
+      document.documentElement.setAttribute('data-theme', e.data.theme);
+      sessionStorage.setItem('theme', e.data.theme);
+    }
+  });
 })();
 </script>
-
-<!-- 导航栏 -->
-<nav class="navbar">
-  <div class="nav-inner">
-    <div class="logo" onclick="location.href='/'">
-      <span class="logo-icon">📝</span>
-      <span class="gradient-text">TrendArticle</span>
-      <span class="nav-tag">工作流</span>
-    </div>
-    <div class="nav-links">
-      <a class="nav-btn dashboard" href="/dashboard" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'dashboard'},'*');return false;}">📊 仪表盘</a>
-      <a class="nav-btn" href="/library" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'library'},'*');return false;}">📚 素材库</a>
-      <a class="nav-btn" href="/settings" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'settings'},'*');return false;}">⚙️ 设置</a>
-    </div>
-  </div>
-</nav>
 
 <!-- 三栏工作流布局 -->
 <div class="workflow-layout">
@@ -47,6 +34,16 @@
       <label class="field-label">主题与素材</label>
       <textarea id="topicInput" class="topic-input" rows="5"
         placeholder="输入创作主题，或从「素材库」选择热点自动填充..."></textarea>
+    </div>
+
+    <div class="left-section">
+      <label class="field-label">🕷️ 网页素材采集</label>
+      <div class="url-scrape-row">
+        <input type="text" id="urlInput" class="url-input" placeholder="粘贴网页 URL，自动抓取正文作为素材..."
+          onkeydown="if(event.key==='Enter')scrapeUrl()">
+        <button class="btn btn-sm btn-primary" id="scrapeBtn" onclick="scrapeUrl()">抓取</button>
+      </div>
+      <div id="scrapeStatus" class="scrape-status" style="display:none;"></div>
     </div>
 
     <div class="left-section">

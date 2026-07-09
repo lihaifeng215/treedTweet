@@ -26,7 +26,21 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('pendingHotspot'); // 用完即清理
     try {
       const hotspot = JSON.parse(hotspotRaw);
-      const topicText = `${hotspot.title || ''}\n${hotspot.desc || hotspot.body || ''}\n来源：${hotspot.source || ''}`;
+      let topicText = `标题：${hotspot.title || ''}\n`;
+      if (hotspot.desc || hotspot.body) {
+        topicText += `描述：${hotspot.desc || hotspot.body || ''}\n`;
+      }
+      topicText += `来源：${hotspot.source || ''}`;
+
+      // 附加详情搜索结果（链接和摘要）
+      if (hotspot.detail_results && hotspot.detail_results.length > 0) {
+        topicText += '\n\n📖 参考信息：';
+        hotspot.detail_results.forEach((r, i) => {
+          topicText += `\n${i + 1}. ${r.title || '未命名'}`;
+          if (r.snippet) topicText += `\n   ${r.snippet}`;
+          if (r.url) topicText += `\n   🔗 ${r.url}`;
+        });
+      }
       document.getElementById('topicInput').value = topicText;
       window._pendingHotspot = hotspot;
       // 自动启动工作流
@@ -106,6 +120,81 @@ function getCreateConfig() {
     citation_pref: document.getElementById('citationPref').value,
     article_max_length: window._pendingHotspot ? null : null,
   };
+}
+
+// --- Firecrawl URL 抓取 ---
+async function scrapeUrl() {
+  const urlInput = document.getElementById('urlInput');
+  const scrapeBtn = document.getElementById('scrapeBtn');
+  const statusEl = document.getElementById('scrapeStatus');
+  const topicInput = document.getElementById('topicInput');
+  const url = urlInput.value.trim();
+
+  if (!url) {
+    showToast('请输入网页 URL', 'error');
+    return;
+  }
+
+  if (!url.startsWith('http')) {
+    showToast('URL 必须以 http:// 或 https:// 开头', 'error');
+    return;
+  }
+
+  scrapeBtn.disabled = true;
+  scrapeBtn.textContent = '抓取中...';
+  statusEl.style.display = 'block';
+  statusEl.className = 'scrape-status loading';
+  statusEl.textContent = '🕷️ 正在抓取网页内容...';
+
+  try {
+    const resp = await fetch('/api/firecrawl/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url }),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      statusEl.className = 'scrape-status error';
+      statusEl.textContent = '❌ ' + (data.error || '抓取失败');
+      showToast('抓取失败: ' + (data.error || '未知错误'), 'error');
+      return;
+    }
+
+    // 成功：将 Markdown 内容填充到素材输入框
+    const title = data.title || '网页素材';
+    const markdown = data.markdown || '';
+    const existingText = topicInput.value.trim();
+
+    // 如果输入框已有内容，追加；否则替换
+    let newContent;
+    if (existingText) {
+      newContent = existingText + '\n\n---\n\n' +
+        '## 采集自：' + data.url + '\n' +
+        '### ' + title + '\n\n' +
+        markdown;
+    } else {
+      newContent = '来源：' + data.url + '\n' +
+        '标题：' + title + '\n\n' +
+        markdown;
+    }
+
+    topicInput.value = newContent;
+    statusEl.className = 'scrape-status success';
+    statusEl.textContent =
+      '✅ 已采集「' + title + '」（' + data.word_count + ' 字符，消耗 ' + data.credits_used + ' credit）';
+    showToast('网页素材采集成功！已填充到输入框', 'success');
+    urlInput.value = ''; // 清空 URL 输入
+
+  } catch (err) {
+    statusEl.className = 'scrape-status error';
+    statusEl.textContent = '❌ 请求失败: ' + err.message;
+    showToast('请求失败: ' + err.message, 'error');
+  } finally {
+    scrapeBtn.disabled = false;
+    scrapeBtn.textContent = '抓取';
+  }
 }
 
 // 文章模板定义

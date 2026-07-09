@@ -15,6 +15,7 @@ let sourceHealthData = {};
 let lastRefreshTime = null;
 let countdownTimer = null;
 const CACHE_TTL = 300; // 5分钟缓存
+let hotspotDetailCache = {}; // 热点详情搜索结果缓存（按标题索引）
 
 // 信源分级配置（v6.1）
 const SOURCE_TIERS = {
@@ -115,14 +116,20 @@ function renderHotspots(items) {
     const estimatedScore = Math.min(99, Math.round(40 + TIER_WEIGHTS[tier] * 15 + Math.min(item.engagement || 0, 1000000) / 20000));
     const scoreClass = estimatedScore >= 75 ? 'high' : (estimatedScore >= 55 ? 'mid' : 'low');
     
+    const desc = (item.desc || item.body || '').trim();
+    const url = (item.url || '').trim();
+    const titleHTML = url
+      ? `<a href="${escapeAttr(url)}" target="_blank" class="card-title-link" title="点击查看原文" onclick="event.stopPropagation()">${escapeHTML(item.title)}</a>`
+      : `<div class="card-title">${escapeHTML(item.title)}</div>`;
+
     return `
       <div class="hotspot-card fade-in" data-id="${item.id}" data-source="${escapeHTML(item.source)}" style="animation-delay:${idx * 0.04}s">
         <div class="card-header">
           <span class="card-source ${sourceClass}">${getSourceIcon(item.source)} ${escapeHTML(item.source)}</span>
           <span class="card-rank">#${rank}</span>
         </div>
-        <div class="card-title">${escapeHTML(item.title)}</div>
-        ${item.desc || item.body ? `<div class="card-desc">${escapeHTML((item.desc || item.body || '').substring(0, 120))}</div>` : ''}
+        ${titleHTML}
+        ${desc ? `<div class="card-desc">${escapeHTML(desc.substring(0, 200))}</div>` : ''}
         <div class="card-meta">
           ${meta}
           <span>👁 ${engagement}</span>
@@ -131,9 +138,13 @@ function renderHotspots(items) {
           <span class="score-badge ${scoreClass}">${estimatedScore}分</span>
         </div>
         <div class="card-actions">
-          <button class="card-action-btn primary" onclick="event.stopPropagation(); startWorkflow('${hotspotJson}')">
+          <button class="card-action-btn primary" onclick="event.stopPropagation(); startWorkflowWithDetail('${hotspotJson}', '${escapeAttr(item.title)}')">
             ✨ 开始创作
           </button>
+          <button class="card-action-btn" onclick="event.stopPropagation(); showHotspotDetail('${escapeAttr(item.title)}')">
+            📖 详情
+          </button>
+          ${url ? `<a href="${escapeAttr(url)}" target="_blank" class="card-action-btn link" onclick="event.stopPropagation()">🔗 原文</a>` : ''}
           <button class="card-action-btn" onclick="event.stopPropagation(); copyTitle('${escapeAttr(item.title)}')">
             📋 标题
           </button>
@@ -143,12 +154,57 @@ function renderHotspots(items) {
 }
 
 function startWorkflow(hotspotJson) {
+  // 保留原有函数兼容其他调用
   if (!llmConfigured) {
     showToast('⚠️ 请先在「设置」中配置大模型 API', 'error');
     setTimeout(() => location.href = '/settings', 1200);
     return;
   }
   sessionStorage.setItem('pendingHotspot', hotspotJson);
+  if (window.top !== window.self) {
+    window.parent.postMessage({type:'navigate',target:'workflow'},'*');
+  } else {
+    location.href = '/';
+  }
+}
+
+async function startWorkflowWithDetail(hotspotJson, title) {
+  if (!llmConfigured) {
+    showToast('⚠️ 请先在「设置」中配置大模型 API', 'error');
+    setTimeout(() => location.href = '/settings', 1200);
+    return;
+  }
+
+  // 如果缓存中没有详情数据，自动获取
+  if (!hotspotDetailCache[title]) {
+    const btn = document.querySelector(`[onclick*="startWorkflowWithDetail"][onclick*="${escapeAttr(title)}"]`);
+    if (btn) {
+      btn.textContent = '⏳ 获取详情...';
+      btn.disabled = true;
+    }
+    try {
+      const resp = await fetch(`/api/hotspot-detail?title=${encodeURIComponent(title)}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        hotspotDetailCache[title] = data.results || [];
+      } else {
+        hotspotDetailCache[title] = [];
+      }
+    } catch (e) {
+      hotspotDetailCache[title] = [];
+    }
+    if (btn) {
+      btn.textContent = '✨ 开始创作';
+      btn.disabled = false;
+    }
+  }
+
+  // 将详情结果附加到热点数据中
+  const hotspot = JSON.parse(hotspotJson);
+  hotspot.detail_results = hotspotDetailCache[title] || [];
+  const enrichedJson = JSON.stringify(hotspot);
+
+  sessionStorage.setItem('pendingHotspot', enrichedJson);
   if (window.top !== window.self) {
     window.parent.postMessage({type:'navigate',target:'workflow'},'*');
   } else {
@@ -390,3 +446,61 @@ async function deleteArticle(aid) {
     showToast('删除失败：' + e.message, 'error');
   }
 }
+
+// ============================================================
+// 热点详情弹窗
+// ============================================================
+async function showHotspotDetail(title) {
+  const modal = document.getElementById('detailModal');
+  const titleEl = document.getElementById('detailTitle');
+  const bodyEl = document.getElementById('detailBody');
+
+  titleEl.textContent = title;
+  bodyEl.innerHTML = `
+    <div class="detail-loading">
+      <div class="spinner"></div>
+      <p>正在搜索相关信息...</p>
+    </div>
+  `;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const resp = await fetch(`/api/hotspot-detail?title=${encodeURIComponent(title)}`);
+    if (!resp.ok) throw new Error('搜索失败');
+    const data = await resp.json();
+    const results = data.results || [];
+
+    // 缓存结果，供「开始创作」时复用
+    hotspotDetailCache[title] = results;
+
+    if (results.length === 0) {
+      bodyEl.innerHTML = `<div class="detail-empty"><div class="empty-icon">🔍</div><h3>暂无搜索结果</h3><p>未找到关于「${escapeHTML(title)}」的详细介绍。</p></div>`;
+      return;
+    }
+
+    bodyEl.innerHTML = results.map((r, idx) => `
+      <div class="detail-result">
+        <div class="detail-result-num">${idx + 1}</div>
+        <div class="detail-result-content">
+          <a href="${escapeAttr(r.url || '#')}" target="_blank" class="detail-result-title">${escapeHTML(r.title || '未命名')}</a>
+          ${r.snippet ? `<p class="detail-result-snippet">${escapeHTML(r.snippet)}</p>` : ''}
+          ${r.url ? `<div class="detail-result-url">${escapeHTML(r.url)}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    bodyEl.innerHTML = `<div class="detail-empty"><div class="empty-icon">⚠️</div><h3>加载失败</h3><p>${escapeHTML(e.message)}</p></div>`;
+  }
+}
+
+function closeDetailModal() {
+  const modal = document.getElementById('detailModal');
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ESC 键关闭弹窗
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetailModal();
+});

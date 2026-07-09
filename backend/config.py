@@ -21,6 +21,9 @@ LLM 配置管理模块
   SEARCH_PROVIDER       - 搜索引擎提供商 duckduckgo/serpapi/bing/bing_html（默认 duckduckgo，自动降级到 bing_html）
   SEARCH_API_KEY        - 搜索引擎 API Key（SerpAPI/Bing 需要，DuckDuckGo/Bing HTML 无需）
   SEARCH_BASE_URL       - 搜索引擎自定义 Base URL（可选）
+
+Firecrawl 配置环境变量：
+  FIRECRAWL_API_KEY     - Firecrawl 网页抓取 API Key（用于素材采集）
 """
 import json
 import os
@@ -44,6 +47,7 @@ _DEFAULTS = {
     'search_provider': 'bing_html',
     'search_api_key': '',
     'search_base_url': '',
+    'firecrawl_api_key': '',
 }
 
 _lock = Lock()
@@ -113,6 +117,7 @@ def get_config():
     env_search_provider = os.environ.get('SEARCH_PROVIDER')
     env_search_key = os.environ.get('SEARCH_API_KEY')
     env_search_base = os.environ.get('SEARCH_BASE_URL')
+    env_firecrawl_key = os.environ.get('FIRECRAWL_API_KEY')
 
     if env_key:
         cfg['api_key'] = env_key
@@ -138,6 +143,8 @@ def get_config():
         cfg['search_api_key'] = env_search_key
     if env_search_base:
         cfg['search_base_url'] = env_search_base
+    if env_firecrawl_key:
+        cfg['firecrawl_api_key'] = env_firecrawl_key
 
     # Clamp temperature even if not from env
     cfg['temperature'] = _clamp(cfg.get('temperature', 0.8), 0, 2)
@@ -151,7 +158,7 @@ def update_config(new_cfg):
     """更新运行时配置，并落盘保存（供前端 /api/llm-config 调用）"""
     global _runtime_config
     cfg = get_config()
-    str_keys = ('api_key', 'base_url', 'model', 'proxy', 'search_provider', 'search_api_key', 'search_base_url')
+    str_keys = ('api_key', 'base_url', 'model', 'proxy', 'search_provider', 'search_api_key', 'search_base_url', 'firecrawl_api_key')
     float_keys = ('temperature',)
     bool_keys = ('stream_enabled', 'thinking_enabled')
     int_keys = ('thinking_budget_tokens', 'article_max_length')

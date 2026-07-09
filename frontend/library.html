@@ -9,35 +9,18 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
 <script>
-// 如果在 iframe 中，隐藏导航栏，并通过 postMessage 通知父页面
-(function() {
-  if (window.top !== window.self) {
-    document.documentElement.classList.add('in-iframe');
-  }
+(function(){
+  const saved = sessionStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'theme') {
+      document.documentElement.setAttribute('data-theme', e.data.theme);
+      sessionStorage.setItem('theme', e.data.theme);
+    }
+  });
 })();
 </script>
-
-<!-- 导航栏 -->
-<nav class="navbar">
-  <div class="nav-inner">
-    <div class="logo" onclick="location.href='/'">
-      <span class="logo-icon">📝</span>
-      <span class="logo-text">Trend<span class="gradient-text">Article</span></span>
-      <span class="nav-tag">素材库</span>
-    </div>
-    <div class="nav-links">
-      <a class="nav-btn" href="/dashboard" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'dashboard'},'*');return false;}">📊 仪表盘</a>
-      <a class="nav-btn" href="/" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'workflow'},'*');return false;}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7-7 7M21 12H3"/></svg>
-        <span>工作流</span>
-      </a>
-      <button class="nav-btn nav-btn-primary" onclick="refreshHotspots()">🔄 刷新热点</button>
-      <a class="nav-btn" href="/settings" onclick="if(window.top!==window.self){window.parent.postMessage({type:'navigate',target:'settings'},'*');return false;}">⚙️ 设置</a>
-    </div>
-  </div>
-</nav>
 
 <main class="main-content">
   <!-- Hero -->
@@ -77,6 +60,7 @@
       <button class="search-clear" id="searchClear" style="display:none;" onclick="clearSearch()">✕</button>
     </div>
     <div class="toolbar-right">
+      <button class="btn btn-sm btn-primary refresh-btn" onclick="refreshHotspots()" title="手动刷新热点数据">🔄 刷新热点</button>
       <span class="refresh-countdown" id="refreshCountdown"></span>
       <select class="sort-select" id="sortSelect" onchange="onSortChange()">
         <option value="default">📋 默认排序</option>
@@ -149,6 +133,26 @@
 </footer>
 
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- 热点详情弹窗 -->
+<div class="detail-modal" id="detailModal" style="display:none;">
+  <div class="detail-overlay" onclick="closeDetailModal()"></div>
+  <div class="detail-panel">
+    <div class="detail-header">
+      <h3 class="detail-title" id="detailTitle"></h3>
+      <button class="detail-close" onclick="closeDetailModal()" title="关闭">&times;</button>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <div class="detail-loading">
+        <div class="spinner"></div>
+        <p>正在搜索相关信息...</p>
+      </div>
+    </div>
+    <div class="detail-footer">
+      <button class="btn btn-primary" onclick="closeDetailModal()">关闭</button>
+    </div>
+  </div>
+</div>
 
 <script src="/common.js"></script>
 <script src="/library.js"></script>

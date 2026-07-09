@@ -41,6 +41,10 @@ async function loadConfig() {
       document.getElementById('searchApiKey').placeholder = '已保存 · 留空则不修改';
     }
     if (cfg.search_base_url) document.getElementById('searchBaseUrl').value = cfg.search_base_url;
+    // Firecrawl
+    if (cfg.firecrawl_api_key_set) {
+      document.getElementById('firecrawlApiKey').placeholder = '已保存 · 留空则不修改';
+    }
     updateStatus(cfg.configured, cfg.configured ? '已配置大模型接口' : '尚未配置大模型接口');
   } catch (err) {
     updateStatus(false, '无法连接服务器');
@@ -89,6 +93,9 @@ async function saveConfig() {
   if (apiKey) payload.api_key = apiKey;
   const searchApiKey = document.getElementById('searchApiKey').value.trim();
   if (searchApiKey) payload.search_api_key = searchApiKey;
+  // Firecrawl
+  const firecrawlApiKey = document.getElementById('firecrawlApiKey').value.trim();
+  if (firecrawlApiKey) payload.firecrawl_api_key = firecrawlApiKey;
 
   try {
     const resp = await fetch('/api/llm-config', {
@@ -151,6 +158,8 @@ async function testConnection() {
   if (apiKey) payload.api_key = apiKey;
   const searchApiKey = document.getElementById('searchApiKey').value.trim();
   if (searchApiKey) payload.search_api_key = searchApiKey;
+  const firecrawlApiKey = document.getElementById('firecrawlApiKey').value.trim();
+  if (firecrawlApiKey) payload.firecrawl_api_key = firecrawlApiKey;
 
   try {
     await fetch('/api/llm-config', {

@@ -3,34 +3,60 @@
 ⚙️  设置页: http://localhost:5000/settings
  * Serving Flask app 'app'
  * Debug mode: off
-2026-07-08 17:19:21,030 INFO [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+2026-07-09 09:12:13,215 INFO [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5000
  * Running on http://10.249.47.12:5000
-2026-07-08 17:19:21,030 INFO [33mPress CTRL+C to quit[0m
-2026-07-08 17:19:31,563 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "GET / HTTP/1.1" 200 -
-2026-07-08 17:19:31,575 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "[36mGET /style.css HTTP/1.1[0m" 304 -
-2026-07-08 17:19:31,807 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "GET /workflow.html HTTP/1.1" 200 -
-2026-07-08 17:19:31,960 INFO 127.0.0.1 - - [08/Jul/2026 17:19:31] "[36mGET /style.css HTTP/1.1[0m" 304 -
-2026-07-08 17:19:32,174 INFO 127.0.0.1 - - [08/Jul/2026 17:19:32] "[36mGET /common.js HTTP/1.1[0m" 304 -
-2026-07-08 17:19:32,175 INFO 127.0.0.1 - - [08/Jul/2026 17:19:32] "[36mGET /workflow.css HTTP/1.1[0m" 304 -
-2026-07-08 17:19:32,191 INFO 127.0.0.1 - - [08/Jul/2026 17:19:32] "[36mGET /workflow.js HTTP/1.1[0m" 304 -
-2026-07-08 17:19:36,172 INFO 127.0.0.1 - - [08/Jul/2026 17:19:36] "GET / HTTP/1.1" 200 -
-2026-07-08 17:19:43,321 INFO 127.0.0.1 - - [08/Jul/2026 17:19:43] "GET / HTTP/1.1" 200 -
-2026-07-08 17:19:51,115 INFO 127.0.0.1 - - [08/Jul/2026 17:19:51] "GET / HTTP/1.1" 200 -
-2026-07-08 17:19:59,702 INFO 127.0.0.1 - - [08/Jul/2026 17:19:59] "GET / HTTP/1.1" 200 -
-2026-07-08 17:20:11,084 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /workflow.html HTTP/1.1" 200 -
-2026-07-08 17:20:11,086 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /library.html HTTP/1.1" 200 -
-2026-07-08 17:20:11,088 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /settings.html HTTP/1.1" 200 -
-2026-07-08 17:20:11,091 INFO 127.0.0.1 - - [08/Jul/2026 17:20:11] "GET /dashboard.html HTTP/1.1" 200 -
-2026-07-08 17:20:23,338 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /workflow.html HTTP/1.1" 200 -
-2026-07-08 17:20:23,345 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /library.html HTTP/1.1" 200 -
-2026-07-08 17:20:23,351 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /settings.html HTTP/1.1" 200 -
-2026-07-08 17:20:23,358 INFO 127.0.0.1 - - [08/Jul/2026 17:20:23] "GET /dashboard.html HTTP/1.1" 200 -
-2026-07-08 17:20:33,644 INFO 127.0.0.1 - - [08/Jul/2026 17:20:33] "GET / HTTP/1.1" 200 -
-2026-07-08 17:20:33,769 INFO 127.0.0.1 - - [08/Jul/2026 17:20:33] "GET /style.css HTTP/1.1" 200 -
-2026-07-08 17:20:34,069 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "GET /workflow.html HTTP/1.1" 200 -
-2026-07-08 17:20:34,080 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "[36mGET /style.css HTTP/1.1[0m" 304 -
-2026-07-08 17:20:34,178 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "GET /workflow.css HTTP/1.1" 200 -
-2026-07-08 17:20:34,487 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "[36mGET /common.js HTTP/1.1[0m" 304 -
-2026-07-08 17:20:34,533 INFO 127.0.0.1 - - [08/Jul/2026 17:20:34] "GET /workflow.js HTTP/1.1" 200 -
+2026-07-09 09:12:13,215 INFO [33mPress CTRL+C to quit[0m
+2026-07-09 09:12:28,474 INFO 127.0.0.1 - - [09/Jul/2026 09:12:28] "[36mGET /library.html HTTP/1.1[0m" 304 -
+2026-07-09 09:12:28,597 INFO 127.0.0.1 - - [09/Jul/2026 09:12:28] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-09 09:12:28,956 INFO 127.0.0.1 - - [09/Jul/2026 09:12:28] "[36mGET /common.js HTTP/1.1[0m" 304 -
+2026-07-09 09:12:28,958 INFO 127.0.0.1 - - [09/Jul/2026 09:12:28] "GET /library.js HTTP/1.1" 200 -
+2026-07-09 09:12:38,440 INFO 127.0.0.1 - - [09/Jul/2026 09:12:38] "GET /api/hotspots HTTP/1.1" 200 -
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: codecrafters-io/build-your-own...
+2026-07-09 09:12:42,310 INFO 127.0.0.1 - - [09/Jul/2026 09:12:42] "GET /api/hotspot-detail?title=codecrafters-io/build-your-own-x%20⭐523571 HTTP/1.1" 200 -
+2026-07-09 09:12:42,845 INFO 127.0.0.1 - - [09/Jul/2026 09:12:42] "[36mGET /workflow.html HTTP/1.1[0m" 304 -
+2026-07-09 09:12:42,955 INFO 127.0.0.1 - - [09/Jul/2026 09:12:42] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-09 09:12:43,255 INFO 127.0.0.1 - - [09/Jul/2026 09:12:43] "[36mGET /workflow.css HTTP/1.1[0m" 304 -
+2026-07-09 09:12:43,256 INFO 127.0.0.1 - - [09/Jul/2026 09:12:43] "[36mGET /common.js HTTP/1.1[0m" 304 -
+2026-07-09 09:12:43,256 INFO 127.0.0.1 - - [09/Jul/2026 09:12:43] "GET /workflow.js HTTP/1.1" 200 -
+2026-07-09 09:12:44,155 INFO 127.0.0.1 - - [09/Jul/2026 09:12:44] "POST /api/workflow/create HTTP/1.1" 200 -
+2026-07-09 09:12:48,151 INFO 127.0.0.1 - - [09/Jul/2026 09:12:48] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/parse HTTP/1.1" 200 -
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: build your own x 开源教程 合集...
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: 从零构建项目 编程学习 有效性 研究...
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: GitHub 从零开始 项目 星数 排行榜...
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: 从零构建 vs 传统学习 编程 优劣...
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: 为什么从零构建项目是学习编程的最佳路径 观点...
+2026-07-09 09:12:54,392 INFO 127.0.0.1 - - [09/Jul/2026 09:12:54] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/research HTTP/1.1" 200 -
+2026-07-09 09:13:01,922 INFO 127.0.0.1 - - [09/Jul/2026 09:13:01] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/topics HTTP/1.1" 200 -
+2026-07-09 09:13:17,068 INFO 127.0.0.1 - - [09/Jul/2026 09:13:17] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/topic/select HTTP/1.1" 200 -
+2026-07-09 09:13:27,003 INFO 127.0.0.1 - - [09/Jul/2026 09:13:27] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/outline HTTP/1.1" 200 -
+2026-07-09 09:13:44,954 INFO 127.0.0.1 - - [09/Jul/2026 09:13:44] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/outline/confirm HTTP/1.1" 200 -
+2026-07-09 09:13:46,498 INFO 127.0.0.1 - - [09/Jul/2026 09:13:46] "POST /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d/generate HTTP/1.1" 200 -
+2026-07-09 09:14:33,946 INFO 127.0.0.1 - - [09/Jul/2026 09:14:33] "GET /api/workflow/f307d1e6168f4ba8876e2f97ea183a4d HTTP/1.1" 200 -
+2026-07-09 09:14:39,857 INFO 127.0.0.1 - - [09/Jul/2026 09:14:39] "[36mGET /settings.html HTTP/1.1[0m" 304 -
+2026-07-09 09:14:40,011 INFO 127.0.0.1 - - [09/Jul/2026 09:14:40] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-09 09:14:40,295 INFO 127.0.0.1 - - [09/Jul/2026 09:14:40] "[36mGET /settings.css HTTP/1.1[0m" 304 -
+2026-07-09 09:14:40,358 INFO 127.0.0.1 - - [09/Jul/2026 09:14:40] "[36mGET /settings.js HTTP/1.1[0m" 304 -
+2026-07-09 09:14:40,407 INFO 127.0.0.1 - - [09/Jul/2026 09:14:40] "GET /api/llm-config HTTP/1.1" 200 -
+2026-07-09 09:14:53,495 INFO 127.0.0.1 - - [09/Jul/2026 09:14:53] "POST /api/llm-config HTTP/1.1" 200 -
+2026-07-09 09:15:02,021 INFO 127.0.0.1 - - [09/Jul/2026 09:15:02] "POST /api/llm-config HTTP/1.1" 200 -
+2026-07-09 09:15:04,424 INFO 127.0.0.1 - - [09/Jul/2026 09:15:04] "POST /api/test-llm HTTP/1.1" 200 -
+2026-07-09 09:15:08,722 INFO 127.0.0.1 - - [09/Jul/2026 09:15:08] "[36mGET /workflow.html HTTP/1.1[0m" 304 -
+2026-07-09 09:15:09,100 INFO 127.0.0.1 - - [09/Jul/2026 09:15:09] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-09 09:15:09,101 INFO 127.0.0.1 - - [09/Jul/2026 09:15:09] "[36mGET /common.js HTTP/1.1[0m" 304 -
+2026-07-09 09:15:09,102 INFO 127.0.0.1 - - [09/Jul/2026 09:15:09] "[36mGET /workflow.js HTTP/1.1[0m" 304 -
+2026-07-09 09:15:09,103 INFO 127.0.0.1 - - [09/Jul/2026 09:15:09] "[36mGET /workflow.css HTTP/1.1[0m" 304 -
+2026-07-09 09:15:11,530 INFO 127.0.0.1 - - [09/Jul/2026 09:15:11] "[36mGET /library.html HTTP/1.1[0m" 304 -
+2026-07-09 09:15:11,911 INFO 127.0.0.1 - - [09/Jul/2026 09:15:11] "[36mGET /common.js HTTP/1.1[0m" 304 -
+2026-07-09 09:15:11,911 INFO 127.0.0.1 - - [09/Jul/2026 09:15:11] "[36mGET /style.css HTTP/1.1[0m" 304 -
+2026-07-09 09:15:11,912 INFO 127.0.0.1 - - [09/Jul/2026 09:15:11] "[36mGET /library.js HTTP/1.1[0m" 304 -
+2026-07-09 09:15:12,270 INFO 127.0.0.1 - - [09/Jul/2026 09:15:12] "GET /api/hotspots HTTP/1.1" 200 -
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: codecrafters-io/build-your-own...
+2026-07-09 09:15:47,952 INFO 127.0.0.1 - - [09/Jul/2026 09:15:47] "GET /api/hotspot-detail?title=codecrafters-io/build-your-own-x%20⭐523571 HTTP/1.1" 200 -
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: 超强台风“巴威”确认影响杭州...
+2026-07-09 09:16:06,218 INFO 127.0.0.1 - - [09/Jul/2026 09:16:06] "GET /api/hotspot-detail?title=超强台风“巴威”确认影响杭州 HTTP/1.1" 200 -
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: 新华社：国足成绩再不好也不能造谣...
+2026-07-09 09:16:10,322 INFO 127.0.0.1 - - [09/Jul/2026 09:16:10] "GET /api/hotspot-detail?title=新华社：国足成绩再不好也不能造谣 HTTP/1.1" 200 -
+[search_client] bing_html(https://www.bing.com/search) OK: 5 results for query: 花呗崩了...
+2026-07-09 09:16:21,316 INFO 127.0.0.1 - - [09/Jul/2026 09:16:21] "GET /api/hotspot-detail?title=花呗崩了 HTTP/1.1" 200 -
