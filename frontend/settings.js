@@ -45,6 +45,10 @@ async function loadConfig() {
     if (cfg.firecrawl_api_key_set) {
       document.getElementById('firecrawlApiKey').placeholder = '已保存 · 留空则不修改';
     }
+    // Tavily
+    if (cfg.tavily_api_key_set) {
+      document.getElementById('tavilyApiKey').placeholder = '已保存 · 留空则不修改';
+    }
     updateStatus(cfg.configured, cfg.configured ? '已配置大模型接口' : '尚未配置大模型接口');
   } catch (err) {
     updateStatus(false, '无法连接服务器');
@@ -96,6 +100,9 @@ async function saveConfig() {
   // Firecrawl
   const firecrawlApiKey = document.getElementById('firecrawlApiKey').value.trim();
   if (firecrawlApiKey) payload.firecrawl_api_key = firecrawlApiKey;
+  // Tavily
+  const tavilyApiKey = document.getElementById('tavilyApiKey').value.trim();
+  if (tavilyApiKey) payload.tavily_api_key = tavilyApiKey;
 
   try {
     const resp = await fetch('/api/llm-config', {

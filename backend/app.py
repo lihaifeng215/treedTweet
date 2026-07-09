@@ -16,6 +16,7 @@ import re
 import time
 import logging
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from functools import wraps
 from urllib.parse import quote
@@ -140,25 +141,23 @@ def index():
 
 @app.route('/workflow')
 def workflow_page():
-    # 工作流页面（iframe 内使用）
-    return send_from_directory(app.static_folder, 'workflow.html')
+    # 返回壳页面，由 index.html 根据 URL 自动加载 workflow.html 到 iframe
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/library')
 def library_page():
-    # 素材库页面（原热点列表）
-    return send_from_directory(app.static_folder, 'library.html')
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/settings')
 def settings_page():
-    return send_from_directory(app.static_folder, 'settings.html')
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/dashboard')
 def dashboard_page():
-    """商业版仪表盘：日报 + 精选热点 + 信源健康"""
-    return send_from_directory(app.static_folder, 'dashboard.html')
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/style.css')
@@ -838,7 +837,7 @@ def workflow_parse(wf_id):
 @app.route('/api/workflow/<wf_id>/research', methods=['POST'])
 @rate_limit
 def workflow_research(wf_id):
-    """步骤2：真实搜索调研"""
+    """步骤2：深度搜索调研（搜索 → 抓取网页 → LLM合成简报）"""
     wf = workflow_engine.get_workflow(wf_id)
     if wf is None:
         return jsonify({'error': '工作流不存在'}), 404
@@ -849,7 +848,7 @@ def workflow_research(wf_id):
     workflow_engine.update_step(wf_id, 'research', status=workflow_engine.STEP_STATUS_RUNNING,
                                 input_data={'parsed': parsed_material})
 
-    # 步骤2a：生成搜索计划
+    # ========== 阶段 1：生成搜索计划 ==========
     ok, plan = llm_client.generate_search_plan(parsed_material)
     if not ok:
         workflow_engine.update_step(wf_id, 'research', status=workflow_engine.STEP_STATUS_FAILED, output={'error': plan})
@@ -858,7 +857,7 @@ def workflow_research(wf_id):
     queries = plan.get('search_queries', [])
     sub_tasks = [{'name': f'生成搜索计划（{len(queries)}个查询）', 'status': 'completed'}]
 
-    # 步骤2b：执行搜索
+    # ========== 阶段 2：执行搜索 ==========
     all_results = []
     for i, q in enumerate(queries[:5]):
         sub_tasks.append({'name': f'搜索：{q[:20]}', 'status': 'running'})
@@ -883,7 +882,116 @@ def workflow_research(wf_id):
         'results': deduped[:20],
         'total_found': len(all_results),
     }
-    sub_tasks.append({'name': f'汇总资料（{len(deduped)}条）', 'status': 'completed'})
+
+    # ========== 阶段 3：深度抓取 Top-N 网页内容 ==========
+    top_urls = [r.get('url') for r in deduped[:8] if r.get('url')]
+    scraped_contents = []
+    sources_scraped = 0
+
+    if top_urls:
+        sub_tasks.append({'name': f'深度抓取 {len(top_urls)} 个网页内容...', 'status': 'running'})
+        workflow_engine.update_step(wf_id, 'research', sub_tasks=sub_tasks)
+
+        # 并行抓取（最多 4 个并发，避免过载）
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {}
+            for url in top_urls:
+                future = executor.submit(firecrawl_client.scrape_url, url)
+                futures[future] = url
+
+            for future in as_completed(futures):
+                url = futures[future]
+                try:
+                    ok, content = future.result(timeout=45)
+                    if ok and isinstance(content, dict) and content.get('markdown'):
+                        # 过滤掉太短的内容（可能是抓取失败或空白页）
+                        if len(content.get('markdown', '')) > 100:
+                            scraped_contents.append({
+                                'url': url,
+                                'title': content.get('title', ''),
+                                'markdown': content.get('markdown', ''),
+                            })
+                            sources_scraped += 1
+                    else:
+                        # 抓取失败（可能是 API Key 未配置、配额不足等）
+                        # 静默跳过，后续用 snippet 降级
+                        pass
+                except Exception as e:
+                    # 超时或其他异常，跳过该 URL
+                    print(f"[research] scrape failed for {url[:50]}: {e}")
+                    pass
+
+        scraped_count = len(scraped_contents) if scraped_contents else 0
+        sub_tasks[-1]['status'] = 'completed' if sources_scraped > 0 else 'warning'
+        if sources_scraped > 0:
+            sub_tasks[-1]['name'] = f'深度抓取 {sources_scraped}/{len(top_urls)} 个网页成功'
+
+    # 将抓取内容附加到搜索结果中（供前端展示实际抓取来源）
+    for r in research_output['results']:
+        for s in scraped_contents:
+            if r.get('url') == s.get('url'):
+                r['scraped'] = True
+                r['scraped_length'] = len(s.get('markdown', ''))
+                break
+
+    # ========== 构建 enriched_results：合并 Firecrawl + Tavily 内容 ==========
+    scraped_map = {s['url']: s for s in scraped_contents}
+    enriched_results = []
+    for r in research_output['results'][:15]:
+        entry = {
+            'url': r.get('url', ''),
+            'title': r.get('title', ''),
+            'snippet': r.get('snippet', ''),
+        }
+        # 附加 Firecrawl 完整抓取内容
+        scraped = scraped_map.get(r.get('url', ''))
+        if scraped:
+            entry['firecrawl_markdown'] = scraped.get('markdown', '')
+        enriched_results.append(entry)
+
+    # ========== 阶段 4：LLM 合成研究简报 ==========
+    sub_tasks.append({'name': 'AI 合成研究简报...', 'status': 'running'})
+    workflow_engine.update_step(wf_id, 'research', sub_tasks=sub_tasks)
+
+    cfg = llm_client.get_config()
+    thinking_enabled = cfg.get('thinking_enabled', False)
+    ok, brief = llm_client.synthesize_research_brief(
+        enriched_results, parsed_material,
+        thinking_enabled=thinking_enabled
+    )
+
+    if ok:
+        research_output['brief'] = brief
+        research_output['sources_scraped'] = sources_scraped
+        sub_tasks[-1]['status'] = 'completed'
+        if sources_scraped > 0:
+            sub_tasks[-1]['name'] = f'AI 研究简报完成（🤖 深度模式 · {sources_scraped} 个网页完整抓取）'
+        elif any(len(r.get('snippet', '')) > 300 for r in research_output['results']):
+            sub_tasks[-1]['name'] = 'AI 研究简报完成（📋 增强模式 · Tavily 完整正文）'
+        else:
+            sub_tasks[-1]['name'] = 'AI 研究简报完成（📋 摘要模式）'
+        if sources_scraped == 0:
+            has_long_snippets = any(len(r.get('snippet', '')) > 300 for r in research_output['results'])
+            if has_long_snippets:
+                research_output['scrape_note'] = (
+                    'Firecrawl 未配置，但 Tavily 搜索引擎已返回完整正文内容（非简短摘要），'
+                    '研究简报信息较为丰富。建议配置 Firecrawl 以获得完整网页抓取能力。'
+                )
+            else:
+                research_output['scrape_note'] = (
+                    'Firecrawl API Key 未配置且未使用 Tavily，研究简报基于传统搜索引擎摘要片段生成，'
+                    '信息可能不完整。建议在「设置」页面配置 Tavily API Key 或 Firecrawl API Key 以获得深度调研能力。'
+                )
+        else:
+            research_output['scrape_note'] = f'Firecrawl 成功抓取 {sources_scraped} 个网页 + Tavily 搜索正文，进行深度分析。'
+    else:
+        # 合成失败不阻塞流程，用原有结果
+        sub_tasks[-1]['status'] = 'warning'
+        sub_tasks[-1]['name'] = f'研究简报生成失败（降级使用原始搜索结果）'
+        research_output['brief_error'] = brief
+        research_output['sources_scraped'] = sources_scraped
+
+    sub_tasks.append({'name': f'汇总资料（{len(deduped)}条搜索结果，{sources_scraped}个深度抓取）', 'status': 'completed'})
     workflow_engine.update_step(wf_id, 'research', status=workflow_engine.STEP_STATUS_COMPLETED,
                                 output=research_output, sub_tasks=sub_tasks)
     next_step, is_last = workflow_engine.advance_step(wf_id)
@@ -1200,6 +1308,7 @@ def get_llm_config():
         'search_api_key_set': bool(cfg.get('search_api_key')),
         'search_base_url': cfg.get('search_base_url', ''),
         'firecrawl_api_key_set': bool(cfg.get('firecrawl_api_key')),
+        'tavily_api_key_set': bool(cfg.get('tavily_api_key')),
         'configured': is_configured(),
     })
 

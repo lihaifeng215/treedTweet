@@ -24,6 +24,9 @@ LLM 配置管理模块
 
 Firecrawl 配置环境变量：
   FIRECRAWL_API_KEY     - Firecrawl 网页抓取 API Key（用于素材采集）
+
+Tavily 搜索配置环境变量：
+  TAVILY_API_KEY        - Tavily 搜索 API Key（AI 专用搜索引擎，搜索质量更高）
 """
 import json
 import os
@@ -48,6 +51,7 @@ _DEFAULTS = {
     'search_api_key': '',
     'search_base_url': '',
     'firecrawl_api_key': '',
+    'tavily_api_key': '',
 }
 
 _lock = Lock()
@@ -118,6 +122,7 @@ def get_config():
     env_search_key = os.environ.get('SEARCH_API_KEY')
     env_search_base = os.environ.get('SEARCH_BASE_URL')
     env_firecrawl_key = os.environ.get('FIRECRAWL_API_KEY')
+    env_tavily_key = os.environ.get('TAVILY_API_KEY')
 
     if env_key:
         cfg['api_key'] = env_key
@@ -145,6 +150,8 @@ def get_config():
         cfg['search_base_url'] = env_search_base
     if env_firecrawl_key:
         cfg['firecrawl_api_key'] = env_firecrawl_key
+    if env_tavily_key:
+        cfg['tavily_api_key'] = env_tavily_key
 
     # Clamp temperature even if not from env
     cfg['temperature'] = _clamp(cfg.get('temperature', 0.8), 0, 2)
@@ -158,7 +165,7 @@ def update_config(new_cfg):
     """更新运行时配置，并落盘保存（供前端 /api/llm-config 调用）"""
     global _runtime_config
     cfg = get_config()
-    str_keys = ('api_key', 'base_url', 'model', 'proxy', 'search_provider', 'search_api_key', 'search_base_url', 'firecrawl_api_key')
+    str_keys = ('api_key', 'base_url', 'model', 'proxy', 'search_provider', 'search_api_key', 'search_base_url', 'firecrawl_api_key', 'tavily_api_key')
     float_keys = ('temperature',)
     bool_keys = ('stream_enabled', 'thinking_enabled')
     int_keys = ('thinking_budget_tokens', 'article_max_length')

@@ -19,7 +19,7 @@ const STEP_NAMES = {
 const STEP_ORDER = ['parse', 'research', 'topics', 'outline', 'generate', 'verify'];
 
 // --- 初始化 ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // 从 sessionStorage 读取热点（来自素材库跳转）
   const hotspotRaw = sessionStorage.getItem('pendingHotspot');
   if (hotspotRaw) {
@@ -49,6 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       console.error('hotspot data parse error', e);
       showToast('热点数据解析失败，请手动操作', 'error');
+    }
+  } else {
+    // 没有新的热点数据时，尝试恢复上次正在进行的工作流
+    const restored = await restoreWorkflow();
+    if (!restored) {
+      renderDetails();
     }
   }
 
@@ -101,9 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
       exportArticle();
     }
   });
-
-  // 初始渲染明细
-  renderDetails();
 });
 
 // --- 工具函数 ---
@@ -236,6 +239,139 @@ function setBusy(busy) {
   document.getElementById('startBtn').disabled = busy;
 }
 
+// --- 工作流持久化（跨页面导航恢复）---
+function saveWorkflowId() {
+  if (currentWorkflow && currentWorkflow.id) {
+    sessionStorage.setItem('lastWorkflowId', currentWorkflow.id);
+  }
+}
+
+function clearWorkflowId() {
+  sessionStorage.removeItem('lastWorkflowId');
+}
+
+async function restoreWorkflow() {
+  const wfId = sessionStorage.getItem('lastWorkflowId');
+  if (!wfId) return false;
+
+  try {
+    const resp = await fetch(`/api/workflow/${wfId}`);
+    if (!resp.ok) {
+      clearWorkflowId();
+      return false;
+    }
+    const data = await resp.json();
+    const wf = data.workflow;
+
+    // 已完成/已失败/已导出的工作流不再恢复
+    if (wf.status === 'completed' || wf.status === 'failed' || wf.status === 'exported') {
+      clearWorkflowId();
+      return false;
+    }
+
+    currentWorkflow = wf;
+    renderProgress();
+    renderDetails();
+
+    // 渲染当前步骤的内容
+    renderRestoredStepContent(wf);
+
+    // 恢复左侧设置面板
+    restoreConfigPanel(wf);
+
+    showToast('已恢复上次的工作流', 'success');
+    return true;
+  } catch (e) {
+    console.error('恢复工作流失败', e);
+    return false;
+  }
+}
+
+function renderRestoredStepContent(wf) {
+  const steps = wf.steps || [];
+  const stepMap = {};
+  steps.forEach(s => { stepMap[s.step_name] = s; });
+
+  // 优先展示 waiting_user 的步骤，其次展示 current_step
+  const waitingStep = steps.find(s => s.status === 'waiting_user');
+  const curStepName = waitingStep ? waitingStep.step_name : wf.current_step;
+  const curStep = stepMap[curStepName];
+  if (!curStep || !curStep.output) return;
+
+  const output = curStep.output;
+  switch (curStepName) {
+    case 'parse':
+      renderParseResult(output);
+      break;
+    case 'research':
+      renderResearchResult(output);
+      break;
+    case 'topics':
+      renderTopics(output);
+      setBusy(false);
+      break;
+    case 'outline':
+      renderOutline(output);
+      setBusy(false);
+      document.getElementById('actionBar').style.display = 'flex';
+      break;
+    case 'generate':
+      if (output.content) {
+        const area = document.getElementById('stepContentArea');
+        area.innerHTML = `
+          <div class="step-result-card">
+            <h4>📝 正文生成</h4>
+            <div class="article-preview" style="white-space:pre-wrap;max-height:60vh;overflow-y:auto;">${escapeHTML(output.content)}</div>
+          </div>
+        `;
+        articleContentFull = output.content || '';
+        document.getElementById('actionBar').style.display = 'flex';
+      }
+      setBusy(false);
+      break;
+    case 'verify':
+      renderVerifyResult(output);
+      setBusy(false);
+      document.getElementById('actionBar').style.display = 'flex';
+      break;
+    default:
+      setBusy(false);
+      break;
+  }
+}
+
+function restoreConfigPanel(wf) {
+  // 恢复左侧设置面板
+  const config = wf.config || {};
+  if (config.style) {
+    const sel = document.getElementById('styleSelect');
+    if (sel) sel.value = config.style;
+  }
+  if (config.content_type) {
+    const sel = document.getElementById('contentType');
+    if (sel) sel.value = config.content_type;
+  }
+  // 恢复素材输入框内容
+  if (wf.source === 'hotspot' && wf.source_data) {
+    const topicInput = document.getElementById('topicInput');
+    const sd = wf.source_data;
+    if (topicInput && sd.title) {
+      let text = `标题：${sd.title || ''}\n来源：${sd.source || ''}`;
+      if (sd.detail_results && sd.detail_results.length > 0) {
+        text += '\n\n📖 参考信息：';
+        sd.detail_results.forEach((r, i) => {
+          text += `\n${i + 1}. ${r.title || '未命名'}`;
+          if (r.url) text += `\n   🔗 ${r.url}`;
+        });
+      }
+      topicInput.value = text;
+    }
+  } else if (wf.source === 'custom' && wf.source_data && wf.source_data.topic) {
+    const topicInput = document.getElementById('topicInput');
+    if (topicInput) topicInput.value = wf.source_data.topic;
+  }
+}
+
 // --- 创建工作流 ---
 async function createWorkflow() {
   const topicInput = document.getElementById('topicInput');
@@ -272,7 +408,7 @@ async function createWorkflow() {
       setBusy(false);
       return;
     }
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderProgress();
     renderDetails();
     showToast('工作流已创建，开始素材解析...', 'success');
@@ -301,7 +437,7 @@ async function runParse() {
       return;
     }
     addProgressLog('✅ 素材解析完成');
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderParseResult(data.result);
     renderProgress();
     renderDetails();
@@ -331,9 +467,9 @@ function renderParseResult(result) {
   scrollToContent();
 }
 
-// --- 步骤2：搜索调研 ---
+// --- 步骤2：深度搜索调研 ---
 async function runResearch() {
-  showStepLoading('research', '正在联网搜索调研...');
+  showStepLoading('research', '正在生成搜索计划...');
   showProgressBar(true);
   setProgressPercent(5);
   addProgressLog('🔍 根据素材解析结果生成搜索计划...');
@@ -343,21 +479,59 @@ async function runResearch() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
-    setProgressPercent(50);
+    setProgressPercent(30);
     addProgressLog('🌐 正在实时联网搜索...');
     
+    // 轮询子任务状态（后端异步执行搜索+抓取+合成）
+    let pollCount = 0;
+    const maxPolls = 60; // 最多等 2 分钟
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+      try {
+        const statusResp = await fetch(`/api/workflow/${currentWorkflow.id}`);
+        if (statusResp.ok) {
+          const wfData = await statusResp.json();
+          const steps = wfData.workflow?.steps || [];
+          const researchStep = steps.find(s => s.step_name === 'research');
+          if (researchStep && researchStep.sub_tasks) {
+            const lastTask = researchStep.sub_tasks[researchStep.sub_tasks.length - 1];
+            if (lastTask) {
+              const logText = lastTask.name + (lastTask.status === 'running' ? '...' : ` (${lastTask.status})`);
+              addProgressLog(logText);
+            }
+            // 更新进度条
+            const total = researchStep.sub_tasks.length;
+            const done = researchStep.sub_tasks.filter(t => t.status === 'completed' || t.status === 'warning').length;
+            setProgressPercent(Math.min(30 + Math.round((done / Math.max(total, 1)) * 55), 85));
+          }
+          if (researchStep && (researchStep.status === 'completed' || researchStep.status === 'failed')) {
+            clearInterval(pollInterval);
+          }
+        }
+      } catch(e) {}
+      if (pollCount >= maxPolls) clearInterval(pollInterval);
+    }, 2000);
+    
     const data = await resp.json();
+    clearInterval(pollInterval);
+    
     if (!resp.ok) {
       showToast(data.error || '搜索调研失败', 'error');
       setBusy(false);
       return;
     }
-    setProgressPercent(85);
-    addProgressLog('📊 分析搜索结果并生成研究摘要...');
+    setProgressPercent(90);
     
-    currentWorkflow = data.workflow;
+    const scrapedCount = data.result?.sources_scraped || 0;
+    if (scrapedCount > 0) {
+      addProgressLog(`📖 深度抓取 ${scrapedCount} 个网页完成，AI 正在合成研究简报...`);
+    } else {
+      addProgressLog('📋 使用搜索摘要模式（未配置 Firecrawl 或抓取失败），AI 正在合成简报...');
+    }
+    
+    currentWorkflow = data.workflow; saveWorkflowId();
     setProgressPercent(100);
-    addProgressLog(`✅ 搜索调研完成 · 获取 ${(data.result?.results || []).length} 条搜索结果`);
+    addProgressLog(`✅ 搜索调研完成 · ${(data.result?.results || []).length} 条结果${scrapedCount > 0 ? '，' + scrapedCount + ' 个深度抓取' : ''}`);
     
     renderResearchResult(data.result);
     renderProgress();
@@ -372,16 +546,106 @@ async function runResearch() {
 
 function renderResearchResult(result) {
   const area = document.getElementById('stepContentArea');
+
+  // 研究简报卡片（优先展示）
+  let briefHTML = '';
+  const brief = result.brief;
+  if (brief && (brief.brief || (brief.key_facts && brief.key_facts.length > 0))) {
+    let factsHTML = '';
+    if (brief.key_facts && brief.key_facts.length > 0) {
+      factsHTML = `
+        <div style="margin-top:12px;">
+          <div class="field-label" style="margin-bottom:8px;">📌 关键事实</div>
+          ${brief.key_facts.map(f => {
+            const fact = typeof f === 'object' ? f.fact : f;
+            const source = typeof f === 'object' ? f.source : '';
+            return `<div class="research-fact-item">
+              <span>• ${escapeHTML(fact)}</span>
+              ${source ? `<span class="research-fact-source">[${escapeHTML(source)}]</span>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    let dataHTML = '';
+    if (brief.data_points && brief.data_points.length > 0) {
+      dataHTML = `
+        <div style="margin-top:12px;">
+          <div class="field-label" style="margin-bottom:8px;">📊 关键数据</div>
+          ${brief.data_points.map(d => {
+            const data = typeof d === 'object' ? d.data : d;
+            const source = typeof d === 'object' ? d.source : '';
+            return `<div class="research-fact-item">
+              <span>• ${escapeHTML(data)}</span>
+              ${source ? `<span class="research-fact-source">[${escapeHTML(source)}]</span>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    let perspectivesHTML = '';
+    if (brief.different_perspectives && brief.different_perspectives.length > 0) {
+      perspectivesHTML = `
+        <div style="margin-top:12px;">
+          <div class="field-label" style="margin-bottom:8px;">🗣️ 多元观点</div>
+          ${brief.different_perspectives.map(p => {
+            const text = typeof p === 'object' ? p.perspective : p;
+            return `<div class="research-fact-item" style="background:rgba(59,130,246,0.08);border-left:2px solid var(--accent-blue);">• ${escapeHTML(text)}</div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    let gapsHTML = '';
+    if (brief.knowledge_gaps && brief.knowledge_gaps.length > 0) {
+      gapsHTML = `
+        <div style="margin-top:12px;">
+          <div class="field-label" style="margin-bottom:8px;color:var(--warning-orange);">⚠️ 信息缺口</div>
+          ${brief.knowledge_gaps.map(g => `<div class="research-fact-item" style="color:var(--warning-orange);">• ${escapeHTML(g)}</div>`).join('')}
+        </div>`;
+    }
+
+    let credibilityHTML = '';
+    if (brief.credibility_assessment) {
+      credibilityHTML = `
+        <div style="margin-top:12px;padding:8px 12px;background:rgba(34,197,94,0.06);border-radius:8px;font-size:13px;color:var(--text-secondary);">
+          🔍 来源可信度：${escapeHTML(brief.credibility_assessment)}
+        </div>`;
+    }
+
+    briefHTML = `
+      <div class="step-result-card research-brief-card">
+        <h4>📋 AI 研究简报 ${result.sources_scraped > 0 ? `<span class="badge badge-green">深度调研 · ${result.sources_scraped}个网页</span>` : `<span class="badge badge-yellow">摘要模式</span>`}</h4>
+        ${result.scrape_note ? `<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">${escapeHTML(result.scrape_note)}</div>` : ''}
+        ${brief.brief ? `<div class="research-brief-text">${escapeHTML(brief.brief)}</div>` : ''}
+        ${factsHTML}
+        ${dataHTML}
+        ${perspectivesHTML}
+        ${gapsHTML}
+        ${credibilityHTML}
+      </div>`;
+  } else if (result.brief_error) {
+    briefHTML = `
+      <div class="step-result-card" style="border-left:3px solid var(--warning-orange);">
+        <h4>⚠️ 研究简报生成失败</h4>
+        <div class="result-text" style="color:var(--warning-orange);">${escapeHTML(result.brief_error)}</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">已降级使用原始搜索结果，但信息可能不完整。建议在「设置」配置 Firecrawl API Key。</div>
+      </div>`;
+  }
+
+  // 搜索结果列表
   const items = (result.results || []).map(r => `
-    <div class="research-item">
+    <div class="research-item${r.scraped ? ' research-item-scraped' : ''}">
       <a class="research-item-title" href="${r.url}" target="_blank">${r.title || '无标题'}</a>
+      ${r.scraped ? `<span class="scraped-badge">✅ 已深度抓取（${(r.scraped_length / 1000).toFixed(1)}k字）</span>` : ''}
       <div class="research-item-snippet">${r.snippet || ''}</div>
       ${r.query ? `<div class="research-item-query">搜索词：${r.query}</div>` : ''}
     </div>
   `).join('');
+
   area.innerHTML = `
+    ${briefHTML}
     <div class="step-result-card">
-      <h4>🔍 搜索调研结果 <span style="font-size:12px;color:var(--text-muted);font-weight:400;">共 ${result.total_found || 0} 条，展示 ${result.results?.length || 0} 条</span></h4>
+      <h4>🔍 搜索结果 <span style="font-size:12px;color:var(--text-muted);font-weight:400;">共 ${result.total_found || 0} 条，展示 ${result.results?.length || 0} 条</span></h4>
       ${result.plan?.rationale ? `<div class="result-text" style="margin-bottom:14px;">${result.plan.rationale}</div>` : ''}
       <div class="research-list">${items || '<div class="result-text">暂无搜索结果</div>'}</div>
     </div>
@@ -405,7 +669,7 @@ async function runTopics() {
       return;
     }
     addProgressLog(`✅ 已生成 ${(data.result?.topics || []).length} 个候选选题，请选择一个`);
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderTopics(data.result);
     renderProgress();
     renderDetails();
@@ -459,7 +723,7 @@ async function selectTopic(topicId) {
       setBusy(false);
       return;
     }
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderProgress();
     renderDetails();
     showToast('已选择选题，正在生成大纲...', 'success');
@@ -486,7 +750,7 @@ async function runOutline() {
       return;
     }
     addProgressLog(`✅ 大纲已生成，共 ${(data.result?.sections || []).length} 个章节`);
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderOutline(data.result);
     renderProgress();
     renderDetails();
@@ -554,7 +818,7 @@ async function confirmOutline() {
       setBusy(false);
       return;
     }
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderProgress();
     renderDetails();
     showToast('大纲已确认，开始流式生成正文...', 'success');
@@ -733,7 +997,7 @@ async function runVerify() {
       return;
     }
     addProgressLog('✅ 质量检验完成');
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     renderVerifyResult(data.result);
     renderProgress();
     renderDetails();
@@ -850,6 +1114,7 @@ async function exportArticle() {
     }
 
     showToast('文章已导出，工作流完成！', 'success');
+    clearWorkflowId();
 
     // 自动保存到历史
     try {
@@ -1000,7 +1265,7 @@ async function goToStep(stepName) {
       return;
     }
 
-    currentWorkflow = data.workflow;
+    currentWorkflow = data.workflow; saveWorkflowId();
     showToast(`已回到：${STEP_NAMES[stepName]}`, 'success');
     renderProgress();
     renderDetails();
@@ -1051,7 +1316,7 @@ async function refreshWorkflow() {
   try {
     const resp = await fetch(`/api/workflow/${currentWorkflow.id}`);
     const data = await resp.json();
-    if (resp.ok) currentWorkflow = data.workflow;
+    if (resp.ok) currentWorkflow = data.workflow; saveWorkflowId();
   } catch (e) { /* ignore */ }
 }
 

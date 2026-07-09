@@ -650,17 +650,155 @@ def generate_search_plan(parsed_material):
     return True, parsed
 
 
+# ---- 步骤2b：研究简报合成（基于深度抓取内容）----
+_RESEARCH_BRIEF_SYSTEM = (
+    '你是一位资深信息分析师。基于多个网页的完整内容和搜索结果，生成一份结构化的研究简报。\n'
+    '你的任务是：提炼关键事实、数据、不同观点，确保每一个论断都有信息来源支撑。\n'
+    '输出 JSON 格式：\n'
+    '{\n'
+    '  "brief": "综合研究摘要（300-500字，概述事件全貌、关键背景、核心争议或焦点）",\n'
+    '  "key_facts": [\n'
+    '    {"fact": "关键事实描述", "source": "来源标题或URL简称"},\n'
+    '    ...\n'
+    '  ],\n'
+    '  "data_points": [\n'
+    '    {"data": "具体数据/统计", "source": "来源标题"},\n'
+    '    ...\n'
+    '  ],\n'
+    '  "different_perspectives": [\n'
+    '    {"perspective": "某方观点或立场描述", "source": "来源标题"},\n'
+    '    ...\n'
+    '  ],\n'
+    '  "timeline": [\n'
+    '    {"time": "时间点", "event": "事件描述"},\n'
+    '    ...\n'
+    '  ],\n'
+    '  "credibility_assessment": "对信息来源可信度的整体评估（50-100字）",\n'
+    '  "knowledge_gaps": ["信息缺口1：哪些关键问题尚未找到答案", ...]\n'
+    '}\n'
+    '要求：\n'
+    '1. 每个事实/数据必须注明来源\n'
+    '2. 如果某维度无相关信息，返回空数组\n'
+    '3. 不要编造任何信息，只基于提供的网页内容\n'
+    '4. 只输出 JSON，不要包含任何解释性文字或 markdown 代码块标记。'
+)
+
+
+def synthesize_research_brief(enriched_results, parsed_material, thinking_enabled=False):
+    """
+    步骤2b：基于搜索结果 + 深度抓取内容，合成结构化的研究简报。
+
+    Args:
+        enriched_results: list of {
+            url, title,
+            snippet: 搜索引擎返回的内容（Tavily: 1500-2300字正文; Bing/DuckDuckGo: ~100字摘要）
+            firecrawl_markdown: Firecrawl 抓取的完整网页 Markdown（可选）
+            score: Tavily 相关性评分（可选）
+        }
+        parsed_material: 步骤1 的素材解析结果
+
+    Returns:
+        (ok: bool, brief: dict|str)
+    """
+    # 按信息量分级构建每项的内容
+    contents_text = ''
+    has_deep = False   # 是否有 Firecrawl 深度抓取
+    has_tavily = False  # 是否有 Tavily 长内容
+    used_count = 0
+
+    for i, item in enumerate(enriched_results[:15]):
+        title = item.get('title', '无标题')
+        url = item.get('url', '')
+        firecrawl = item.get('firecrawl_markdown', '')
+        snippet = item.get('snippet', '')
+
+        source_block = f'\n--- 来源 {i+1}: {title} ---\nURL: {url}\n'
+
+        if firecrawl and len(firecrawl) > 100:
+            # 级别1：有 Firecrawl 全文 → 作为主内容
+            has_deep = True
+            truncated = firecrawl[:3500]
+            if len(firecrawl) > 3500:
+                truncated += f'\n...（原文共 {len(firecrawl)} 字，已截断）'
+            source_block += f'正文（Firecrawl 深度抓取）：\n{truncated}\n'
+            # 如果有 Tavily 长内容，作为 AI 摘要附上（帮助 LLM 抓住重点）
+            if snippet and len(snippet) > 300:
+                source_block += f'\nAI 提取摘要（Tavily，辅助参考）：{snippet[:600]}\n'
+            used_count += 1
+        elif snippet and len(snippet) > 300:
+            # 级别2：无 Firecrawl 但有 Tavily 长内容 → 直接用完整内容
+            has_tavily = True
+            # Tavily 内容 1500-2300 字，不截断
+            source_block += f'正文（搜索引擎提取）：\n{snippet}\n'
+            used_count += 1
+        elif snippet:
+            # 级别3：只有短摘要 → 保留完整摘要（不截断到 200！）
+            source_block += f'摘要：{snippet}\n'
+            used_count += 1
+        else:
+            continue
+
+        contents_text += source_block
+
+    if not used_count:
+        return False, '没有可用的调研资料（无抓取内容且无搜索结果）'
+
+    # 根据信息质量选择提示语
+    if has_deep:
+        mode_hint = '深度模式：以下内容来自 Firecrawl 完整网页抓取 + 搜索引擎提取，信息完整度高。'
+    elif has_tavily:
+        mode_hint = '增强模式：以下内容来自 Tavily 搜索引擎提取的完整正文（非简短摘要），信息丰富。请充分利用这些内容，在简报中引用具体事实和数据。'
+    else:
+        mode_hint = '摘要模式：以下内容为传统搜索引擎摘要片段，信息有限。请在简报中标注不确定的部分。'
+
+    user_prompt = (
+        f"事件主题：{parsed_material.get('summary', '未知')}\n"
+        f"核心概念：{', '.join(parsed_material.get('concepts', []))}\n"
+        f"目标受众：{parsed_material.get('audience', '')}\n\n"
+        f"------------------\n"
+        f"{mode_hint}\n"
+        f"------------------\n\n"
+        f"{contents_text}\n\n"
+        f"请基于以上内容生成结构化的研究简报。"
+    )
+
+    ok, content = _chat([
+        {'role': 'system', 'content': _RESEARCH_BRIEF_SYSTEM},
+        {'role': 'user', 'content': user_prompt},
+    ], expect_json=True, temperature=0.4, thinking_enabled=thinking_enabled)
+
+    if not ok:
+        return False, content
+
+    parsed = _safe_parse_json(content)
+    if parsed is None:
+        return False, '研究简报无法解析为 JSON'
+
+    # 确保字段存在
+    parsed.setdefault('brief', '')
+    parsed.setdefault('key_facts', [])
+    parsed.setdefault('data_points', [])
+    parsed.setdefault('different_perspectives', [])
+    parsed.setdefault('timeline', [])
+    parsed.setdefault('credibility_assessment', '')
+    parsed.setdefault('knowledge_gaps', [])
+
+    return True, parsed
+
+
 # ---- 步骤3：选题讨论 ----
 _TOPICS_SYSTEM = (
-    '你是一位资深公众号选题策划师。基于素材解析和调研资料，生成 3-5 个候选选题。'
-    '每个选题应有独特的切入角度。输出 JSON 格式：\n'
+    '你是一位资深公众号选题策划师。基于素材解析和研究简报，生成 3-5 个候选选题。'
+    '每个选题应有独特的切入角度，必须基于研究简报中的真实信息，不可凭空想象。'
+    '输出 JSON 格式：\n'
     '{\n'
     '  "topics": [\n'
     '    {\n'
     '      "id": "topic_1",\n'
     '      "title": "选题标题（15-30字，有吸引力）",\n'
     '      "angle": "切入角度简述",\n'
-    '      "summary": "选题摘要，说明将如何展开（2-3句话）"\n'
+    '      "summary": "选题摘要，说明将如何展开（2-3句话）",\n'
+    '      "evidence_base": "支撑该选题的关键事实/数据（引用研究简报中的内容）"\n'
     '    }\n'
     '  ]\n'
     '}\n'
@@ -673,17 +811,60 @@ def generate_topics(parsed_material, research):
     concepts = parsed_material.get('concepts', [])
     angles = parsed_material.get('angles', [])
 
-    # 调研资料摘要
-    research_items = research.get('results', [])
-    research_text = ''
-    for i, item in enumerate(research_items[:8]):
-        research_text += f"{i+1}. {item.get('title', '')}\n   {item.get('snippet', '')[:120]}\n"
+    # 优先使用研究简报，其次使用搜索结果摘要
+    brief = research.get('brief', {})
+    if brief and brief.get('brief'):
+        # 有研究简报，使用简报内容
+        research_text = f"研究摘要：{brief.get('brief', '')}\n\n"
+
+        key_facts = brief.get('key_facts', [])
+        if key_facts:
+            research_text += '关键事实：\n'
+            for f in key_facts[:8]:
+                fact_text = f.get('fact', f) if isinstance(f, dict) else str(f)
+                source = f.get('source', '') if isinstance(f, dict) else ''
+                research_text += f"  · {fact_text}"
+                if source:
+                    research_text += f"（来源：{source}）"
+                research_text += '\n'
+
+        data_points = brief.get('data_points', [])
+        if data_points:
+            research_text += '\n关键数据：\n'
+            for d in data_points[:5]:
+                data_text = d.get('data', d) if isinstance(d, dict) else str(d)
+                source = d.get('source', '') if isinstance(d, dict) else ''
+                research_text += f"  · {data_text}"
+                if source:
+                    research_text += f"（来源：{source}）"
+                research_text += '\n'
+
+        perspectives = brief.get('different_perspectives', [])
+        if perspectives:
+            research_text += '\n不同观点：\n'
+            for p in perspectives[:3]:
+                p_text = p.get('perspective', p) if isinstance(p, dict) else str(p)
+                research_text += f"  · {p_text}\n"
+
+        knowledge_gaps = brief.get('knowledge_gaps', [])
+        if knowledge_gaps:
+            research_text += f"\n信息缺口：{'；'.join(knowledge_gaps[:3])}\n"
+    else:
+        # fallback：使用搜索结果（不截断，Tavily 可能返回完整正文）
+        research_items = research.get('results', [])
+        research_text = '⚠️ 注意：以下为搜索结果内容，信息可能不完整，选题时请标注不确定性。\n\n'
+        for i, item in enumerate(research_items[:8]):
+            snip = item.get('snippet', '')
+            research_text += f"{i+1}. [{item.get('title', '')}]\n"
+            if snip:
+                research_text += f"   {snip}\n"
 
     user_prompt = (
         f"核心概念：{', '.join(concepts)}\n"
         f"可选角度：{', '.join(angles)}\n\n"
-        f"调研资料：\n{research_text}\n\n"
-        f"请基于以上信息生成 3-5 个差异化的候选选题。"
+        f"研究简报：\n{research_text}\n\n"
+        f"请严格基于以上研究简报中的真实信息生成 3-5 个差异化的候选选题，"
+        f"每个选题的 evidence_base 字段必须引用简报中的具体事实。"
     )
     ok, content = _chat([
         {'role': 'system', 'content': _TOPICS_SYSTEM},
@@ -731,10 +912,36 @@ def generate_outline(topic, parsed_material, research, style='professional_depth
         max_length = cfg.get('article_max_length', 2000)
     style_name = WORKFLOW_STYLES.get(style, '专业深度')
 
-    research_items = research.get('results', [])
-    research_text = ''
-    for i, item in enumerate(research_items[:6]):
-        research_text += f"{i+1}. {item.get('title', '')}\n   {item.get('snippet', '')[:100]}\n"
+    # 优先使用研究简报
+    brief = research.get('brief', {})
+    if brief and brief.get('brief'):
+        research_text = f"研究摘要：{brief.get('brief', '')}\n\n"
+        key_facts = brief.get('key_facts', [])
+        if key_facts:
+            research_text += '关键事实：\n'
+            for f in key_facts[:6]:
+                fact_text = f.get('fact', f) if isinstance(f, dict) else str(f)
+                research_text += f"  · {fact_text}\n"
+        data_points = brief.get('data_points', [])
+        if data_points:
+            research_text += '\n关键数据：\n'
+            for d in data_points[:4]:
+                data_text = d.get('data', d) if isinstance(d, dict) else str(d)
+                research_text += f"  · {data_text}\n"
+        perspectives = brief.get('different_perspectives', [])
+        if perspectives:
+            research_text += '\n不同观点：\n'
+            for p in perspectives[:3]:
+                p_text = p.get('perspective', p) if isinstance(p, dict) else str(p)
+                research_text += f"  · {p_text}\n"
+    else:
+        research_items = research.get('results', [])
+        research_text = '⚠️ 注意：以下为搜索结果内容，信息可能不完整。\n'
+        for i, item in enumerate(research_items[:6]):
+            snip = item.get('snippet', '')
+            research_text += f"{i+1}. [{item.get('title', '')}]\n"
+            if snip:
+                research_text += f"   {snip}\n"
 
     concepts = parsed_material.get('concepts', [])
     audience = parsed_material.get('audience', '')
@@ -747,8 +954,9 @@ def generate_outline(topic, parsed_material, research, style='professional_depth
         f"目标受众：{audience}\n"
         f"写作风格：{style_name}\n"
         f"目标字数：约 {max_length} 字\n\n"
-        f"调研资料：\n{research_text}\n\n"
-        f"请生成详细的文章大纲。"
+        f"研究简报：\n{research_text}\n\n"
+        f"请基于研究简报中的真实信息生成详细的文章大纲。"
+        f"大纲的每个章节要点必须能对应到简报中的具体事实或数据。"
     )
     ok, content = _chat([
         {'role': 'system', 'content': _OUTLINE_SYSTEM},
@@ -799,29 +1007,69 @@ def generate_body_stream(outline, style='professional_depth', research=None, max
         if points:
             outline_text += "\n   要点：" + "；".join(points)
 
-    # 调研资料引用
+    # 调研资料：优先使用研究简报 + 可引用资料链接
     research_context = ''
-    if research and research.get('results'):
-        refs = []
-        for i, item in enumerate(research['results'][:5]):
-            refs.append(f"[{i+1}] {item.get('title', '')} - {item.get('url', '')}")
-        research_context = "\n\n可引用资料：\n" + "\n".join(refs)
+    if research:
+        brief = research.get('brief', {})
+        if brief and brief.get('brief'):
+            research_context = f"\n\n研究简报（基于真实信息，请严格引用）：\n{brief.get('brief', '')}\n\n关键事实：\n"
+            for f in brief.get('key_facts', [])[:6]:
+                fact_text = f.get('fact', f) if isinstance(f, dict) else str(f)
+                source = f.get('source', '') if isinstance(f, dict) else ''
+                research_context += f"  · {fact_text}"
+                if source:
+                    research_context += f" [来源: {source}]"
+                research_context += '\n'
+
+            data_points = brief.get('data_points', [])
+            if data_points:
+                research_context += '\n数据引用：\n'
+                for d in data_points[:4]:
+                    data_text = d.get('data', d) if isinstance(d, dict) else str(d)
+                    source = d.get('source', '') if isinstance(d, dict) else ''
+                    research_context += f"  · {data_text}"
+                    if source:
+                        research_context += f" [来源: {source}]"
+                    research_context += '\n'
+
+            perspectives = brief.get('different_perspectives', [])
+            if perspectives:
+                research_context += '\n多元观点（请在文章中体现）：\n'
+                for p in perspectives[:3]:
+                    p_text = p.get('perspective', p) if isinstance(p, dict) else str(p)
+                    research_context += f"  · {p_text}\n"
+
+            credibility = brief.get('credibility_assessment', '')
+            if credibility:
+                research_context += f"\n来源可信度评估：{credibility}\n"
+
+        # 附加可引用 URL 列表
+        if research.get('results'):
+            refs = []
+            for i, item in enumerate(research['results'][:5]):
+                refs.append(f"[{i+1}] {item.get('title', '')} - {item.get('url', '')}")
+            if refs:
+                research_context += "\n\n可引用资料链接：\n" + "\n".join(refs)
 
     system_prompt = (
-        '你是一位资深微信公众号主笔，请严格按照大纲撰写完整文章。\n'
+        '你是一位资深微信公众号主笔，请严格按照大纲和研究简报中的真实信息撰写完整文章。\n'
         + instruction + '\n'
-        '要求：\n'
-        '1. 严格按照大纲的章节结构和要点展开，不可遗漏章节\n'
-        '2. 正文需连贯流畅，章节间有自然过渡\n'
-        '3. 适当引用调研资料，增强可信度\n'
-        '4. 使用 **加粗**、emoji 等排版元素增强可读性\n'
-        '5. 不要重复输出"文章标题："等提示语，直接输出正文内容\n'
+        '核心原则 — Garbage In, Garbage Out：\n'
+        '1. 只使用研究简报中明确提供的事实、数据和观点，绝不凭空编造\n'
+        '2. 严格按照大纲的章节结构和要点展开，不可遗漏章节\n'
+        '3. 正文需连贯流畅，章节间有自然过渡\n'
+        '4. 引用数据时注明来源（如"据XX报道""XX数据显示"），增强可信度\n'
+        '5. 对于研究简报中没有的信息，使用"目前尚无公开数据""有待进一步确认"等表述\n'
+        '6. 呈现多元观点，不偏袒任何一方\n'
+        '7. 使用 **加粗**、emoji 等排版元素增强可读性\n'
+        '8. 不要重复输出"文章标题："等提示语，直接输出正文内容\n'
         f'正文总字数约 {max_length} 字。'
     )
 
     user_prompt = (
         f"文章大纲：\n{outline_text}{research_context}\n\n"
-        f"请基于以上大纲撰写完整正文。写作风格：{style_name}。"
+        f"请基于以上大纲和其中引用的研究简报信息撰写完整正文。"
+        f"写作风格：{style_name}。重要：只使用研究简报中明确提到的事实和数据，不要编造。"
         f"直接输出正文内容，从导语开始，无需再输出标题。"
     )
 

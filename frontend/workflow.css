@@ -562,6 +562,75 @@
   margin-top: 6px;
 }
 
+/* 研究简报卡片 */
+.research-brief-card {
+  border-left: 3px solid var(--accent-blue);
+  background: linear-gradient(135deg, rgba(59,130,246,0.04) 0%, rgba(59,130,246,0.01) 100%);
+}
+
+.research-brief-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.7;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.research-fact-item {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+
+.research-fact-source {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.research-item-scraped {
+  border-left: 3px solid var(--accent-green);
+  background: rgba(16,185,129,0.04);
+}
+
+.scraped-badge {
+  font-size: 10px;
+  color: var(--accent-green);
+  background: rgba(16,185,129,0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.badge-green {
+  font-size: 11px;
+  font-weight: 600;
+  color: #065f46;
+  background: rgba(16,185,129,0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.badge-yellow {
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  background: rgba(245,158,11,0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 /* 选题卡片 */
 .topics-grid {
   display: grid;

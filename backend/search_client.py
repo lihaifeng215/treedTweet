@@ -58,13 +58,20 @@ def _http_get(url, params=None, headers=None, timeout=8, data=None):
 def search(query, num_results=10):
     """
     统一搜索接口。根据配置选择搜索引擎或自动降级。
+
+    优先级：Tavily（有 key 时自动优先） > 用户选择的 provider > DuckDuckGo 降级
     返回 [{title, url, snippet}]，失败返回空列表。
     """
     cfg = get_config()
     provider = cfg.get('search_provider', 'bing_html').lower()
     api_key = cfg.get('search_api_key', '')
+    tavily_key = cfg.get('tavily_api_key', '')
 
     try:
+        # Tavily 配置后自动优先，无论 search_provider 选了什么
+        if tavily_key:
+            return _search_tavily(query, tavily_key, num_results)
+
         if provider == 'serpapi' and api_key:
             return _search_serpapi(query, api_key, num_results)
         elif provider == 'bing' and api_key:
@@ -72,7 +79,6 @@ def search(query, num_results=10):
         elif provider == 'bing_html':
             return _search_bing_html(query, num_results)
         else:
-            # DuckDuckGo (default): 多端点自动降级
             return _search_duckduckgo_robust(query, num_results)
     except Exception as e:
         print(f"[search_client] search failed ({provider}): {e}")
@@ -376,3 +382,70 @@ def _search_bing_api(query, api_key, num_results=10):
             'snippet': item.get('snippet', ''),
         })
     return results
+
+
+# ========================================
+# Tavily Search API — AI 专用搜索引擎
+# ========================================
+# Tavily 专为 AI Agent 设计，返回高质量结构化的搜索结果，
+# 包含完整正文内容（非摘要片段）和相关性评分。
+# 文档: https://docs.tavily.com
+
+TAVILY_API_BASE = "https://api.tavily.com/search"
+
+
+def _search_tavily(query, api_key, num_results=10):
+    """
+    Tavily 搜索 — AI 专用搜索引擎。
+
+    返回格式统一为 [{title, url, snippet}]，
+    其中 snippet 字段包含 Tavily 返回的完整 content（远优于传统搜索引擎摘要）。
+    """
+    import requests
+
+    headers = {
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'api_key': api_key,
+        'query': query,
+        'search_depth': 'advanced',
+        'include_answer': False,
+        'include_raw_content': False,
+        'max_results': min(num_results, 20),
+    }
+
+    proxies = _get_proxies()
+
+    try:
+        resp = requests.post(
+            TAVILY_API_BASE,
+            headers=headers,
+            json=payload,
+            timeout=15,
+            proxies=proxies,
+        )
+
+        if resp.status_code != 200:
+            print(f"[search_client] tavily: HTTP {resp.status_code}: {resp.text[:200]}")
+            return []
+
+        data = resp.json()
+        results = []
+        for item in data.get('results', [])[:num_results]:
+            results.append({
+                'title': item.get('title', ''),
+                'url': item.get('url', ''),
+                'snippet': item.get('content', ''),  # Tavily content 比传统 snippet 丰富得多
+                'score': item.get('score', 0),       # 相关性评分
+            })
+
+        print(f"[search_client] tavily OK: {len(results)} results, response_time={data.get('response_time', '?')}s")
+        return results
+
+    except requests.exceptions.Timeout:
+        print(f"[search_client] tavily: timeout for query: {query[:30]}...")
+        return []
+    except Exception as e:
+        print(f"[search_client] tavily error: {e}")
+        return []

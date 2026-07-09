@@ -119,11 +119,12 @@
       </div>
 
       <h2 class="section-title" style="margin-top:24px;">🔍 搜索引擎配置</h2>
-      <p class="form-hint" style="margin-bottom:14px;">用于渐进式创作工作流的「搜索调研」步骤。默认使用 Bing HTML 抓取（免费，国内友好），无需额外配置。</p>
+      <p class="form-hint" style="margin-bottom:14px;">用于渐进式创作工作流的「搜索调研」步骤。推荐使用 Tavily（AI 专用搜索引擎，返回完整正文内容而非简短摘要）。</p>
 
       <div class="form-group">
         <label for="searchProvider">搜索引擎</label>
         <select id="searchProvider" class="select-input">
+          <option value="tavily">⭐ Tavily Search（推荐，AI 专用，需 API Key）</option>
           <option value="bing_html">Bing HTML 抓取（默认，免费，国内友好）</option>
           <option value="duckduckgo">DuckDuckGo（免费，自动降级到 Bing HTML）</option>
           <option value="serpapi">SerpAPI（需 API Key）</option>
@@ -133,10 +134,18 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label for="searchApiKey">搜索 API Key</label>
-          <input type="password" id="searchApiKey" placeholder="SerpAPI/Bing API 密钥（免费引擎无需填写）" autocomplete="off">
-          <p class="form-hint">仅 SerpAPI/Bing API 需要。DuckDuckGo / Bing HTML 留空即可。</p>
+          <label for="tavilyApiKey">Tavily API Key</label>
+          <input type="password" id="tavilyApiKey" placeholder="tvly-..." autocomplete="off">
+          <p class="form-hint">注册地址：<a href="https://tavily.com" target="_blank">tavily.com</a>。免费额度每月 1000 次搜索。Tavily 返回完整正文内容而非摘要，搜索质量远超传统搜索引擎。</p>
         </div>
+        <div class="form-group">
+          <label for="searchApiKey">其他搜索 API Key</label>
+          <input type="password" id="searchApiKey" placeholder="SerpAPI/Bing API 密钥（Tavily/Bing HTML 无需填写）" autocomplete="off">
+          <p class="form-hint">仅 SerpAPI/Bing API 需要。使用 Tavily 或 Bing HTML 时留空即可。</p>
+        </div>
+      </div>
+
+      <div class="form-row">
         <div class="form-group">
           <label for="searchBaseUrl">搜索 Base URL（可选）</label>
           <input type="text" id="searchBaseUrl" placeholder="自定义搜索引擎地址">
